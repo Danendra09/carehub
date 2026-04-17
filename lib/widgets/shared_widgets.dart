@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../screens/profil/profil_screen.dart';
 
 // ─── CareHub Logo Widget ──────────────────────────────────────────────────────
 class CareHubLogo extends StatelessWidget {
   final double size;
   final bool showText;
 
-  const CareHubLogo({super.key, this.size = 40, this.showText = false});
+  const CareHubLogo({super.key, this.size = 40, this.showText = true});
 
   @override
   Widget build(BuildContext context) {
@@ -26,31 +27,31 @@ class CareHubLogo extends StatelessWidget {
             size: size * 0.55,
           ),
         ),
-        if (showText) ...[
-          const SizedBox(width: 8),
-          RichText(
-            text: const TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Care',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+        const SizedBox(width: 8),
+        RichText(
+          text: const TextSpan(
+            children: [
+              TextSpan(
+                text: 'Care',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.3,
                 ),
-                TextSpan(
-                  text: 'Hub',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
+              ),
+              TextSpan(
+                text: 'Hub',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                  letterSpacing: -0.3,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ],
     );
   }
@@ -236,19 +237,22 @@ class IconBox extends StatelessWidget {
 
 // ─── Custom App Bar ───────────────────────────────────────────────────────────
 class CareHubAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final bool showAvatar;
-  final String? avatarUrl;
   final Widget? leading;
   final List<Widget>? actions;
   final String? titleText;
+  final VoidCallback? onProfileTap;
+  final VoidCallback? onNotifTap;
 
   const CareHubAppBar({
     super.key,
-    this.showAvatar = false,
-    this.avatarUrl,
     this.leading,
     this.actions,
     this.titleText,
+    this.onProfileTap,
+    this.onNotifTap,
+    // kept for backward compat — ignored
+    bool showAvatar = false,
+    String? avatarUrl,
   });
 
   @override
@@ -256,62 +260,83 @@ class CareHubAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canPop = Navigator.canPop(context);
     return Container(
       color: AppColors.surface,
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top,
-        left: 20,
-        right: 20,
+        left: canPop ? 4 : 20,
+        right: 8,
       ),
       height: preferredSize.height + MediaQuery.of(context).padding.top,
       child: Row(
         children: [
-          leading ??
-              Row(
-                children: [
-                  const CareHubLogo(size: 32),
-                  if (titleText != null) ...[
-                    const SizedBox(width: 8),
-                    Text(titleText!, style: AppTextStyle.h3),
-                  ],
-                ],
-              ),
+          // Kiri: back button atau logo
+          if (canPop)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.textPrimary, size: 20),
+              onPressed: () => Navigator.pop(context),
+            )
+          else
+            leading ?? const CareHubLogo(size: 32),
+          if (titleText != null) ...[
+            if (!canPop) const SizedBox(width: 8),
+            Text(titleText!, style: AppTextStyle.h3),
+          ],
           const Spacer(),
           ...?actions,
-          if (showAvatar) ...[
-            const SizedBox(width: 12),
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.primaryLight,
-              child: const Icon(
-                Icons.person_rounded,
-                color: AppColors.primary,
-                size: 20,
+          // Notif & Avatar hanya di halaman utama (bukan push screen)
+          if (!canPop) ...[
+            // ── Notifikasi ──
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined,
+                      color: AppColors.textPrimary, size: 24),
+                  onPressed: onNotifTap ?? () {},
+                ),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppColors.danger,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // ── Avatar Profil ──
+            GestureDetector(
+              onTap: onProfileTap ?? () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfilScreen()),
+                );
+              },
+              child: Container(
+                width: 36,
+                height: 36,
+                margin: const EdgeInsets.only(left: 2, right: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
+                ),
+                child: const Icon(
+                  Icons.person_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
               ),
             ),
           ],
-          const SizedBox(width: 12),
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined,
-                    color: AppColors.textPrimary, size: 24),
-                onPressed: () {},
-              ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.danger,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -434,7 +459,7 @@ class ChildAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: radius,
-      backgroundColor: _getColor().withOpacity(0.15),
+      backgroundColor: _getColor().withValues(alpha: 0.15),
       child: Text(
         initials,
         style: TextStyle(

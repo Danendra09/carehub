@@ -10,6 +10,8 @@ class ChildModel {
   final ChildStatus status;
   final String grade;
   final String avatarInitials;
+  final String tempatTglLahir;
+  final String riwayatKesehatan;
 
   ChildModel({
     required this.id,
@@ -19,6 +21,8 @@ class ChildModel {
     required this.status,
     required this.grade,
     required this.avatarInitials,
+    this.tempatTglLahir = '',
+    this.riwayatKesehatan = 'Sehat',
   });
 }
 
@@ -69,6 +73,28 @@ class InventoryItem {
   });
 }
 
+// ─── Artikel Model ────────────────────────────────────────────────────────────
+class ArtikelModel {
+  final String id;
+  final String judul;
+  final String konten;
+  final String tanggal;
+  final String? gambarPath;
+
+  ArtikelModel({
+    required this.id,
+    required this.judul,
+    required this.konten,
+    required this.tanggal,
+    this.gambarPath,
+  });
+
+  String get preview {
+    final clean = konten.replaceAll('\n', ' ').trim();
+    return clean.length > 120 ? '${clean.substring(0, 120)}...' : clean;
+  }
+}
+
 // ─── Dummy Data ───────────────────────────────────────────────────────────────
 class AppData {
   static List<ChildModel> children = [
@@ -80,6 +106,8 @@ class AppData {
       status: ChildStatus.sehat,
       grade: 'Kelas 6 SD',
       avatarInitials: 'AH',
+      tempatTglLahir: 'Purwokerto, 5 Maret 2012',
+      riwayatKesehatan: 'Sehat',
     ),
     ChildModel(
       id: '2',
@@ -89,6 +117,8 @@ class AppData {
       status: ChildStatus.pemulihan,
       grade: 'Kelas 3 SD',
       avatarInitials: 'SA',
+      tempatTglLahir: 'Banyumas, 14 Juli 2015',
+      riwayatKesehatan: 'Alergi debu ringan',
     ),
     ChildModel(
       id: '3',
@@ -98,6 +128,8 @@ class AppData {
       status: ChildStatus.sehat,
       grade: 'Kelas 9 SMP',
       avatarInitials: 'RP',
+      tempatTglLahir: 'Cilacap, 20 Januari 2009',
+      riwayatKesehatan: 'Sehat',
     ),
     ChildModel(
       id: '4',
@@ -107,6 +139,8 @@ class AppData {
       status: ChildStatus.sehat,
       grade: 'Kelas 1 SD',
       avatarInitials: 'DR',
+      tempatTglLahir: 'Kebumen, 8 November 2017',
+      riwayatKesehatan: 'Sehat',
     ),
     ChildModel(
       id: '5',
@@ -116,6 +150,8 @@ class AppData {
       status: ChildStatus.perhatian,
       grade: 'Kelas 5 SD',
       avatarInitials: 'FN',
+      tempatTglLahir: 'Wonosobo, 3 Juni 2013',
+      riwayatKesehatan: 'Asma ringan',
     ),
   ];
 
@@ -230,6 +266,37 @@ class AppData {
       minStock: 30,
       unit: 'Strip',
       status: StockStatus.aman,
+    ),
+  ];
+
+  static List<ArtikelModel> artikels = [
+    ArtikelModel(
+      id: '1',
+      judul: 'Kegiatan Belajar Bersama Anak Asuh CareHub',
+      konten:
+          'CareHub kembali menggelar kegiatan belajar bersama yang diikuti oleh seluruh anak asuh. Kegiatan ini bertujuan untuk meningkatkan semangat belajar dan mempersiapkan mereka menghadapi ujian semester. Pengajar sukarela dari berbagai universitas turut berpartisipasi dalam program ini.',
+      tanggal: '15 Okt 2023',
+    ),
+    ArtikelModel(
+      id: '2',
+      judul: 'Penerimaan Donasi dari PT. Maju Bersama',
+      konten:
+          'CareHub dengan bangga menerima donasi dari PT. Maju Bersama sebesar Rp 10.000.000. Dana ini akan digunakan untuk memenuhi kebutuhan sehari-hari anak asuh dan program pendidikan. Terima kasih atas kepercayaan dan kepedulian.',
+      tanggal: '10 Okt 2023',
+    ),
+    ArtikelModel(
+      id: '3',
+      judul: 'Perayaan Hari Anak Nasional di CareHub',
+      konten:
+          'Dalam rangka memperingati Hari Anak Nasional, CareHub mengadakan berbagai kegiatan menyenangkan. Mulai dari lomba mewarnai, pertunjukan seni, hingga pembagian hadiah bagi seluruh anak asuh.',
+      tanggal: '23 Jul 2023',
+    ),
+    ArtikelModel(
+      id: '4',
+      judul: 'Program Pemeriksaan Kesehatan Gratis',
+      konten:
+          'Bekerjasama dengan Puskesmas setempat, CareHub mengadakan pemeriksaan kesehatan gratis untuk seluruh anak asuh. Dokter dan tenaga medis hadir langsung untuk memeriksa kondisi kesehatan dan memberikan konsultasi nutrisi.',
+      tanggal: '5 Sep 2023',
     ),
   ];
 

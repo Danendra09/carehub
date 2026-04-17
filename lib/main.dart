@@ -20,6 +20,29 @@ void main() {
   runApp(const CareHubApp());
 }
 
+/// Custom scroll behavior:
+/// - Hilangkan efek lonjong/stretch saat overscroll (efek default Android 12+)
+/// - Gunakan ClampingScrollPhysics: scroll berhenti clean di ujung
+class _CareHubScrollBehavior extends ScrollBehavior {
+  const _CareHubScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    // Hapus stretch/glow overscroll indicator
+    return child;
+  }
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    // Scroll langsung berhenti tanpa efek bounce/stretch
+    return const ClampingScrollPhysics();
+  }
+}
+
 class CareHubApp extends StatelessWidget {
   const CareHubApp({super.key});
 
@@ -29,6 +52,8 @@ class CareHubApp extends StatelessWidget {
       title: 'CareHub',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      // Hilangkan efek lonjong/stretch saat overscroll (Android 12+)
+      scrollBehavior: const _CareHubScrollBehavior(),
       home: const SplashScreen(),
     );
   }

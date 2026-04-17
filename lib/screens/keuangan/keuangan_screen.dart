@@ -59,10 +59,11 @@ class _KeuanganScreenState extends State<KeuanganScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      resizeToAvoidBottomInset: false,
       body: CustomScrollView(
         slivers: [
           const SliverToBoxAdapter(
-            child: CareHubAppBar(titleText: 'CareHub'),
+            child: CareHubAppBar(),
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
@@ -143,7 +144,10 @@ class _KeuanganScreenState extends State<KeuanganScreen>
                 ..._getFiltered(_tabController.index)
                     .map((t) => Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: _TransactionCard(transaction: t),
+                          child: _TransactionCard(
+                            transaction: t,
+                            onHapus: () => _hapusTransaksi(context, t),
+                          ),
                         )),
               ]),
             ),
@@ -151,6 +155,7 @@ class _KeuanganScreenState extends State<KeuanganScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab_keuangan',
         onPressed: () => _showAddTransactionSheet(context),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
@@ -168,7 +173,44 @@ class _KeuanganScreenState extends State<KeuanganScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _AddTransactionSheet(),
+      builder: (_) => _AddTransactionSheet(onSaved: () => setState(() {})),
+    );
+  }
+
+  void _hapusTransaksi(BuildContext ctx, TransactionModel t) {
+    showDialog(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Hapus Transaksi'),
+        content: Text('Hapus transaksi "${t.title}" dari riwayat keuangan?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              minimumSize: const Size(80, 40),
+            ),
+            onPressed: () {
+              setState(() => AppData.transactions.removeWhere((x) => x.id == t.id));
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                SnackBar(
+                  content: const Text('Transaksi berhasil dihapus'),
+                  backgroundColor: AppColors.danger,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              );
+            },
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -249,8 +291,12 @@ class _SummaryCard extends StatelessWidget {
 
 class _TransactionCard extends StatelessWidget {
   final TransactionModel transaction;
+  final VoidCallback onHapus;
 
-  const _TransactionCard({required this.transaction});
+  const _TransactionCard({
+    required this.transaction,
+    required this.onHapus,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -258,45 +304,45 @@ class _TransactionCard extends StatelessWidget {
 
     return AppCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: isIncome ? AppColors.successLight : AppColors.dangerLight,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              isIncome
-                  ? Icons.volunteer_activism_rounded
-                  : Icons.shopping_bag_outlined,
-              color: isIncome ? AppColors.success : AppColors.danger,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  transaction.title,
-                  style: AppTextStyle.body.copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${transaction.date} • ${transaction.category}',
-                  style: AppTextStyle.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
           Row(
             children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: isIncome ? AppColors.successLight : AppColors.dangerLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  isIncome
+                      ? Icons.volunteer_activism_rounded
+                      : Icons.shopping_bag_outlined,
+                  color: isIncome ? AppColors.success : AppColors.danger,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      transaction.title,
+                      style: AppTextStyle.body.copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${transaction.date} • ${transaction.category}',
+                      style: AppTextStyle.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
               Text(
                 '${isIncome ? '+' : '-'}${_formatRupiah(transaction.amount)}',
                 style: TextStyle(
@@ -305,13 +351,35 @@ class _TransactionCard extends StatelessWidget {
                   color: isIncome ? AppColors.success : AppColors.danger,
                 ),
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {},
-                child: const Icon(Icons.delete_outline_rounded,
-                    size: 18, color: AppColors.textTertiary),
-              ),
             ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 12),
+          // Tombol Hapus Full-Width
+          GestureDetector(
+            onTap: onHapus,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.dangerLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.delete_outline_rounded,
+                      color: AppColors.danger, size: 16),
+                  SizedBox(width: 6),
+                  Text('Hapus',
+                      style: TextStyle(
+                        color: AppColors.danger,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      )),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -330,7 +398,8 @@ class _TransactionCard extends StatelessWidget {
 }
 
 class _AddTransactionSheet extends StatefulWidget {
-  const _AddTransactionSheet();
+  final VoidCallback onSaved;
+  const _AddTransactionSheet({required this.onSaved});
 
   @override
   State<_AddTransactionSheet> createState() => _AddTransactionSheetState();
@@ -345,16 +414,19 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      resizeToAvoidBottomInset: true,
+      body: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
             child: Column(
@@ -438,6 +510,19 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                   icon: Icons.check_rounded,
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
+                      final now = DateTime.now();
+                      final bulan = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+                      final newT = TransactionModel(
+                        id: (AppData.transactions.length + 1).toString(),
+                        title: _titleCtrl.text.trim(),
+                        subtitle: _category,
+                        date: '${now.day} ${bulan[now.month]} ${now.year}',
+                        amount: double.tryParse(_amountCtrl.text.trim().replaceAll('.', '').replaceAll(',', '')) ?? 0,
+                        type: _type == 'income' ? TransactionType.income : TransactionType.expense,
+                        category: _category,
+                      );
+                      AppData.transactions.insert(0, newT);
+                      widget.onSaved();
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -451,10 +536,12 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                     }
                   },
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -483,7 +570,7 @@ class _TypeButton extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.12) : AppColors.surfaceAlt,
+          color: isSelected ? color.withValues(alpha: 0.12) : AppColors.surfaceAlt,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? color : AppColors.border,

@@ -13,11 +13,22 @@ dependencies:
   fl_chart: ^0.68.0
   intl: ^0.19.0
   google_fonts: ^6.2.1
+  flutter_launcher_icons: ^0.14.4
+  flutter_svg: ^2.2.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/icon.png"
+  adaptive_icon_background: "#155DFC"
+  adaptive_icon_foreground: "assets/images/icon.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true

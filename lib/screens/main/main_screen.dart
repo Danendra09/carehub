@@ -4,6 +4,7 @@ import '../home/home_screen.dart';
 import '../anak/anak_screen.dart';
 import '../keuangan/keuangan_screen.dart';
 import '../inventaris/inventaris_screen.dart';
+import '../artikel/artikel_screen.dart';
 import '../profil/profil_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -21,8 +22,20 @@ class _MainScreenState extends State<MainScreen> {
     AnakScreen(),
     KeuanganScreen(),
     InventarisScreen(),
-    ProfilScreen(),
+    ArtikelScreen(),
   ];
+
+  void _switchTab(int index) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _currentIndex = index);
+  }
+
+  void _goToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfilScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +68,7 @@ class _MainScreenState extends State<MainScreen> {
                 label: 'Home',
                 index: 0,
                 currentIndex: _currentIndex,
-                onTap: () => setState(() => _currentIndex = 0),
+                onTap: () => _switchTab(0),
               ),
               _NavItem(
                 icon: Icons.sentiment_satisfied_rounded,
@@ -63,7 +76,7 @@ class _MainScreenState extends State<MainScreen> {
                 label: 'Anak',
                 index: 1,
                 currentIndex: _currentIndex,
-                onTap: () => setState(() => _currentIndex = 1),
+                onTap: () => _switchTab(1),
               ),
               _NavItem(
                 icon: Icons.account_balance_wallet_rounded,
@@ -71,7 +84,7 @@ class _MainScreenState extends State<MainScreen> {
                 label: 'Keuangan',
                 index: 2,
                 currentIndex: _currentIndex,
-                onTap: () => setState(() => _currentIndex = 2),
+                onTap: () => _switchTab(2),
               ),
               _NavItem(
                 icon: Icons.inventory_2_rounded,
@@ -79,15 +92,15 @@ class _MainScreenState extends State<MainScreen> {
                 label: 'Inventaris',
                 index: 3,
                 currentIndex: _currentIndex,
-                onTap: () => setState(() => _currentIndex = 3),
+                onTap: () => _switchTab(3),
               ),
               _NavItem(
-                icon: Icons.person_rounded,
-                iconOutlined: Icons.person_outline_rounded,
-                label: 'Profil',
+                icon: Icons.newspaper_rounded,
+                iconOutlined: Icons.newspaper_outlined,
+                label: 'Artikel',
                 index: 4,
                 currentIndex: _currentIndex,
-                onTap: () => setState(() => _currentIndex = 4),
+                onTap: () => _switchTab(4),
               ),
             ],
           ),
@@ -122,7 +135,7 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 64,
+        width: 60,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -131,14 +144,14 @@ class _NavItem extends StatelessWidget {
               child: Icon(
                 isSelected ? icon : iconOutlined,
                 color: isSelected ? AppColors.primary : AppColors.textTertiary,
-                size: 24,
+                size: 22,
               ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight:
                     isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected ? AppColors.primary : AppColors.textTertiary,
@@ -147,7 +160,7 @@ class _NavItem extends StatelessWidget {
             const SizedBox(height: 2),
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              width: isSelected ? 20 : 0,
+              width: isSelected ? 18 : 0,
               height: 3,
               decoration: BoxDecoration(
                 color: AppColors.primary,

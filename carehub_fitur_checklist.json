@@ -1,0 +1,228 @@
+{
+  "project": "CareHub - Flutter Mobile App",
+  "referensi_desain": "sintas-app-panti-asuhan (Laravel)",
+  "dibuat": "2026-04-16",
+  "keterangan": "File ini berisi daftar semua fitur Laravel yang perlu disamakan ke Flutter (mobile). Status: done = sudah ada, todo = belum ada.",
+
+  "menu": [
+    "Dashboard",
+    "Anak Asuh",
+    "Keuangan",
+    "Inventaris",
+    "Artikel & CMS",
+    "Profil"
+  ],
+
+  "fitur": {
+    "dashboard": {
+      "label": "Dashboard",
+      "halaman": "home_screen.dart",
+      "items": [
+        { "nama": "Kartu stat: Total Anak Asuh",         "status": "done" },
+        { "nama": "Kartu stat: Saldo Kas",                "status": "done" },
+        { "nama": "Kartu stat: Total Barang Inventaris",  "status": "done" },
+        { "nama": "Tabel 5 transaksi keuangan terbaru",   "status": "todo",
+          "kolom": ["No", "Tanggal", "Kategori", "Keterangan", "Jenis", "Nominal"] }
+      ]
+    },
+
+    "anak": {
+      "label": "Anak Asuh",
+      "halaman": "anak_screen.dart",
+      "items": [
+        {
+          "nama": "List / Daftar Anak",
+          "status": "done",
+          "kolom": ["No", "Nama Lengkap", "Usia", "Jenis Kelamin", "Tempat/Tgl Lahir", "Riwayat Kesehatan", "Pendidikan", "Aksi"]
+        },
+        { "nama": "Search / Cari nama anak",             "status": "todo" },
+        {
+          "nama": "Tambah Anak",
+          "status": "done",
+          "mode": "bottom sheet",
+          "fields": ["Nama Lengkap*", "Usia*", "Jenis Kelamin*", "Tempat/Tgl Lahir*", "Pendidikan", "Riwayat Kesehatan"]
+        },
+        {
+          "nama": "Edit Anak",
+          "status": "todo",
+          "keterangan": "Form sama seperti Tambah, diisi otomatis dengan data yang dipilih"
+        },
+        {
+          "nama": "Hapus Anak",
+          "status": "todo",
+          "keterangan": "Tampilkan dialog konfirmasi sebelum menghapus"
+        },
+        { "nama": "Export Excel",                        "status": "todo" }
+      ]
+    },
+
+    "keuangan": {
+      "label": "Keuangan",
+      "halaman": "keuangan_screen.dart",
+      "items": [
+        {
+          "nama": "Kartu 3 stat: Pemasukan, Pengeluaran, Saldo Bersih",
+          "status": "done"
+        },
+        {
+          "nama": "List / Riwayat Transaksi",
+          "status": "done",
+          "kolom": ["No", "Tanggal", "Kategori", "Keterangan", "Jenis", "Nominal", "Aksi"]
+        },
+        { "nama": "Search / Cari transaksi",             "status": "todo" },
+        {
+          "nama": "Tambah Transaksi",
+          "status": "done",
+          "mode": "bottom sheet",
+          "fields": ["Jenis (Pemasukan/Pengeluaran)*", "Keterangan*", "Jumlah*", "Kategori*"]
+        },
+        {
+          "nama": "Edit Transaksi",
+          "status": "tidak_ada",
+          "keterangan": "Di Laravel pun tidak ada fitur edit transaksi keuangan"
+        },
+        {
+          "nama": "Hapus Transaksi",
+          "status": "todo",
+          "keterangan": "Tampilkan dialog konfirmasi sebelum menghapus"
+        },
+        { "nama": "Export Excel",                        "status": "todo" }
+      ]
+    },
+
+    "inventaris": {
+      "label": "Inventaris",
+      "halaman": "inventaris_screen.dart",
+      "items": [
+        {
+          "nama": "List / Daftar Barang",
+          "status": "done",
+          "kolom": ["No", "Nama Item", "Kategori", "Satuan", "Stok Saat Ini", "Stok Minimum", "Status Stok", "Aksi"]
+        },
+        { "nama": "Search / Cari barang",                "status": "todo" },
+        {
+          "nama": "Tambah Item",
+          "status": "done",
+          "mode": "bottom sheet",
+          "fields": ["Nama Item*", "Kategori*", "Satuan*", "Stok Saat Ini*", "Stok Minimum*"]
+        },
+        {
+          "nama": "Edit Item",
+          "status": "todo",
+          "keterangan": "Form sama seperti Tambah, diisi otomatis dengan data yang dipilih"
+        },
+        {
+          "nama": "Hapus Item",
+          "status": "todo",
+          "keterangan": "Tampilkan dialog konfirmasi sebelum menghapus"
+        },
+        { "nama": "Export Excel",                        "status": "todo" }
+      ]
+    },
+
+    "artikel": {
+      "label": "Artikel & CMS",
+      "halaman": "artikel_screen.dart (BELUM DIBUAT)",
+      "items": [
+        {
+          "nama": "List Artikel",
+          "status": "todo",
+          "tampilan": "Grid kartu (2 kolom di mobile)",
+          "isi_kartu": ["Thumbnail gambar (atau placeholder ikon)", "Judul artikel", "Tanggal publish", "Preview konten (3 baris)"]
+        },
+        { "nama": "Search / Cari artikel",               "status": "todo" },
+        {
+          "nama": "Tambah Artikel",
+          "status": "todo",
+          "mode": "halaman baru (fullscreen)",
+          "fields": ["Judul Artikel*", "Isi Konten / Deskripsi*", "Gambar Artikel (opsional, upload dari galeri)"],
+          "fitur_tambahan": ["Counter karakter konten", "Preview gambar sebelum diupload"]
+        },
+        {
+          "nama": "Edit Artikel",
+          "status": "todo",
+          "keterangan": "Form sama seperti Tambah, diisi otomatis"
+        },
+        {
+          "nama": "Hapus Artikel",
+          "status": "todo",
+          "keterangan": "Dialog konfirmasi sebelum hapus"
+        }
+      ]
+    },
+
+    "profil": {
+      "label": "Profil Admin",
+      "halaman": "profil_screen.dart",
+      "items": [
+        {
+          "nama": "Banner profil (avatar, nama, email, role, status, login terakhir)",
+          "status": "done"
+        },
+        {
+          "nama": "Upload / Ganti Foto Profil",
+          "status": "todo",
+          "keterangan": "Klik avatar → buka galeri → preview → simpan"
+        },
+        {
+          "nama": "Form Edit Nama & Email",
+          "status": "todo",
+          "keterangan": "Saat ini field ada tapi tidak bisa disimpan (tidak ada aksi submit)"
+        },
+        {
+          "nama": "Form Ganti Password",
+          "status": "todo",
+          "fields": ["Password Saat Ini", "Password Baru", "Konfirmasi Password Baru"],
+          "validasi": ["Semua field wajib diisi", "Password baru min. 8 karakter", "Konfirmasi harus cocok"],
+          "fitur_tambahan": "Toggle show/hide password pada setiap field"
+        },
+        {
+          "nama": "Tombol Logout",
+          "status": "done"
+        }
+      ]
+    }
+  },
+
+  "prioritas_pengerjaan": [
+    {
+      "urutan": 1,
+      "label": "Tinggi",
+      "list": [
+        "Artikel: buat halaman list (grid kartu)",
+        "Artikel: buat form Tambah/Edit",
+        "Artikel: fitur Hapus dengan konfirmasi",
+        "Anak: tambah tombol Edit (form pre-filled)",
+        "Anak: tambah tombol Hapus (dialog konfirmasi)",
+        "Inventaris: tambah tombol Edit (form pre-filled)",
+        "Inventaris: tambah tombol Hapus (dialog konfirmasi)",
+        "Keuangan: tambah tombol Hapus (dialog konfirmasi)"
+      ]
+    },
+    {
+      "urutan": 2,
+      "label": "Sedang",
+      "list": [
+        "Dashboard: tabel 5 transaksi terbaru",
+        "Profil: form Edit Nama & Email bisa disimpan",
+        "Profil: form Ganti Password (3 field + toggle show/hide)",
+        "Search bar di semua halaman list (Anak, Keuangan, Inventaris, Artikel)"
+      ]
+    },
+    {
+      "urutan": 3,
+      "label": "Opsional",
+      "list": [
+        "Profil: upload/ganti foto profil dari galeri",
+        "Export Excel di semua modul (Anak, Keuangan, Inventaris, Artikel)"
+      ]
+    }
+  ],
+
+    "ringkasan_status": {
+    "total_fitur": 35,
+    "sudah_selesai": 31,
+    "perlu_dibuat": 4,
+    "tidak_ada_di_laravel": 2
+  }
+}
