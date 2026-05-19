@@ -4,7 +4,7 @@ import '../home/home_screen.dart';
 import '../anak/anak_screen.dart';
 import '../keuangan/keuangan_screen.dart';
 import '../inventaris/inventaris_screen.dart';
-import '../artikel/artikel_screen.dart';
+import '../tamu/tamu_screen.dart';
 import '../profil/profil_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -22,7 +22,7 @@ class _MainScreenState extends State<MainScreen> {
     AnakScreen(),
     KeuanganScreen(),
     InventarisScreen(),
-    ArtikelScreen(),
+    TamuScreen(),
   ];
 
   void _switchTab(int index) {
@@ -95,9 +95,9 @@ class _MainScreenState extends State<MainScreen> {
                 onTap: () => _switchTab(3),
               ),
               _NavItem(
-                icon: Icons.newspaper_rounded,
-                iconOutlined: Icons.newspaper_outlined,
-                label: 'Artikel',
+                icon: Icons.groups_rounded,
+                iconOutlined: Icons.groups_outlined,
+                label: 'Kunjungan',
                 index: 4,
                 currentIndex: _currentIndex,
                 onTap: () => _switchTab(4),
