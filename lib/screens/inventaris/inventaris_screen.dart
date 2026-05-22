@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../theme/app_theme.dart';
 import '../../models/models.dart';
 import '../../widgets/shared_widgets.dart';
+import '../../services/inventaris_service.dart';
+import '../../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InventarisScreen extends StatefulWidget {
   const InventarisScreen({super.key});
@@ -11,214 +16,258 @@ class InventarisScreen extends StatefulWidget {
 }
 
 class _InventarisScreenState extends State<InventarisScreen> {
-  bool _autoRestock = false;
+  List<InventoryItem> _items = [];
+  bool _isLoading = true;
+  bool _canCreate = false;
+  bool _canEdit = false;
+  bool _canDelete = false;
 
-  List<InventoryItem> get _lowStock => AppData.inventoryItems
-      .where((i) => i.status == StockStatus.menipis)
-      .toList();
+  @override
+  void initState() {
+    super.initState();
+    _loadPermissions();
+    _fetchInventaris();
+  }
 
-  int get _totalItems => AppData.inventoryItems.length * 20 + 4;
+  Future<void> _loadPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('user_role') ?? '';
+    final isAdmin = role.toLowerCase() == 'admin' || role.toLowerCase() == 'superadmin';
+    
+    final create = await AuthService.hasPermission('create_inventori');
+    final edit = await AuthService.hasPermission('edit_inventori');
+    final delete = await AuthService.hasPermission('delete_inventori');
+    
+    if (mounted) {
+      setState(() {
+        _canCreate = isAdmin || create;
+        _canEdit = isAdmin || edit;
+        _canDelete = isAdmin || delete;
+      });
+    }
+  }
+
+  Future<void> _fetchInventaris() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await InventarisService.getInventaris();
+      if (mounted) setState(() => _items = data);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Gagal memuat: $e'),
+              backgroundColor: AppColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  List<InventoryItem> get _lowStock =>
+      _items.where((i) => i.status == StockStatus.menipis).toList();
+
+  int get _totalItems => _items.length;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: false,
-      body: CustomScrollView(
-        slivers: [
-          const SliverToBoxAdapter(child: CareHubAppBar()),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const Text('PENGELOLAAN LOGISTIK', style: AppTextStyle.label),
-                const SizedBox(height: 4),
-                const Text(
-                  'Inventaris &\nKebutuhan Logistik',
-                  style: AppTextStyle.h2,
-                ),
-
-                const SizedBox(height: 20),
-
-                // Total items card
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _fetchInventaris,
+              child: CustomScrollView(
+                slivers: [
+                  const SliverToBoxAdapter(
+                    child: CareHubAppBar(),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'TOTAL ITEM',
-                              style: TextStyle(
-                                fontSize: 11,
-                                letterSpacing: 1.0,
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w600,
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        const Text('PENGELOLAAN LOGISTIK',
+                            style: AppTextStyle.label),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Inventaris &\nKebutuhan Logistik',
+                          style: AppTextStyle.h2,
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Total items card
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '$_totalItems',
-                              style: const TextStyle(
-                                fontSize: 48,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: -1,
-                                height: 1,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Kategori: Medis & Pangan',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Icon(Icons.inventory_2_rounded,
-                            color: Colors.white54, size: 40),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                // Stok menipis summary
-                AppCard(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('STOK MENIPIS', style: AppTextStyle.label),
-                          StatusBadge.prioritas(),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _lowStock.length.toString().padLeft(2, '0'),
-                        style: const TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Membutuhkan pengadaan segera dalam 48 jam.',
-                        style: AppTextStyle.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                // Estimasi biaya
-                const AppCard(
-                  padding: EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('ESTIMASI BIAYA', style: AppTextStyle.label),
-                      SizedBox(height: 8),
-                      Text(
-                        'Rp 4.250.000',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(Icons.trending_up_rounded,
-                              color: AppColors.success, size: 16),
-                          SizedBox(width: 4),
-                          Text(
-                            '+12% dari bulan lalu',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.success,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ],
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'TOTAL ITEM',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        letterSpacing: 1.0,
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '$_totalItems',
+                                      style: const TextStyle(
+                                        fontSize: 48,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        letterSpacing: -1,
+                                        height: 1,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    const Text(
+                                      'Kategori: Medis & Pangan',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Icon(Icons.inventory_2_rounded,
+                                    color: Colors.white54, size: 40),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // Stok menipis summary
+                        AppCard(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('STOK MENIPIS',
+                                      style: AppTextStyle.label),
+                                  StatusBadge.prioritas(),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _lowStock.length.toString().padLeft(2, '0'),
+                                style: const TextStyle(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Membutuhkan pengadaan segera dalam 48 jam.',
+                                style: AppTextStyle.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        SectionHeader(
+                          title: 'Daftar Stok Menipis',
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        if (_lowStock.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 20, bottom: 20),
+                            child: Center(
+                              child: Text('Tidak ada stok menipis.',
+                                  style: TextStyle(
+                                      color: Colors.grey, fontSize: 14)),
+                            ),
+                          )
+                        else
+                          ..._lowStock.map((item) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _InventoryCard(
+                                  item: item,
+                                  canEdit: _canEdit,
+                                  canDelete: _canDelete,
+                                  onEdit: () => _showAddItemSheet(context, editData: item),
+                                  onHapus: () => _hapusItem(context, item),
+                                ),
+                              )),
+
+                        const SizedBox(height: 14),
+
+                        // All items section
+                        SectionHeader(
+                          title: 'Semua Item',
+                        ),
+                        const SizedBox(height: 14),
+
+                        if (_items.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 40),
+                            child: EmptyStateWidget(
+                              icon: Icons.inventory_2_rounded,
+                              title: 'Belum Ada Inventaris',
+                              subtitle:
+                                  'Belum ada data barang inventaris. Silakan tap tombol Tambah di bawah.',
+                            ),
+                          )
+                        else
+                          ..._items.map((item) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _InventoryListTile(
+                                  item: item,
+                                  canEdit: _canEdit,
+                                  canDelete: _canDelete,
+                                  onEdit: () => _showAddItemSheet(context,
+                                      editData: item),
+                                  onHapus: () => _hapusItem(context, item),
+                                ),
+                              )),
+                      ]),
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 24),
-
-                SectionHeader(
-                  title: 'Daftar Stok Menipis',
-                  actionText: 'Lihat Semua',
-                  onAction: () {},
-                ),
-
-                const SizedBox(height: 14),
-
-                ..._lowStock.map((item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _InventoryCard(item: item),
-                    )),
-
-                const SizedBox(height: 14),
-
-                // All items section
-                SectionHeader(
-                  title: 'Semua Item',
-                  actionText: 'Tambah',
-                  onAction: () => _showAddItemSheet(context),
-                ),
-                const SizedBox(height: 14),
-
-                ...AppData.inventoryItems.map((item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _InventoryListTile(
-                        item: item,
-                        onEdit: () => _showAddItemSheet(context, editData: item),
-                        onHapus: () => _hapusItem(context, item),
-                      ),
-                    )),
-              ]),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: _canCreate ? FloatingActionButton.extended(
         heroTag: 'fab_inventaris',
         onPressed: () => _showAddItemSheet(context),
         backgroundColor: AppColors.primary,
@@ -231,7 +280,7 @@ class _InventarisScreenState extends State<InventarisScreen> {
             fontSize: 14,
           ),
         ),
-      ),
+      ) : null,
     );
   }
 
@@ -242,52 +291,43 @@ class _InventarisScreenState extends State<InventarisScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _AddItemSheet(
         editData: editData,
-        onSaved: () => setState(() {}),
+        onSaved: () => _fetchInventaris(),
       ),
     );
   }
 
   void _hapusItem(BuildContext ctx, InventoryItem item) {
-    showDialog(
+    showDeleteConfirmDialog(
       context: ctx,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus Item'),
-        content: Text('Hapus "${item.name}" dari inventaris?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
-              minimumSize: const Size(80, 40),
-            ),
-            onPressed: () {
-              setState(() => AppData.inventoryItems.removeWhere((x) => x.id == item.id));
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                SnackBar(
-                  content: Text('${item.name} berhasil dihapus'),
-                  backgroundColor: AppColors.danger,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              );
-            },
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
+      title: 'Hapus Item',
+      message: 'Hapus "${item.name}" dari inventaris?',
+      onConfirm: () async {
+        final success = await InventarisService.deleteInventaris(item.id);
+        if (success) {
+          _fetchInventaris();
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${item.name} berhasil dihapus'), backgroundColor: AppColors.danger, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+        } else {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal menghapus item'), backgroundColor: AppColors.danger));
+        }
+      },
     );
   }
 }
 
 class _InventoryCard extends StatelessWidget {
   final InventoryItem item;
+  final VoidCallback onEdit;
+  final VoidCallback onHapus;
+  final bool canEdit;
+  final bool canDelete;
 
-  const _InventoryCard({required this.item});
+  const _InventoryCard({
+    required this.item,
+    required this.onEdit,
+    required this.onHapus,
+    required this.canEdit,
+    required this.canDelete,
+  });
 
   IconData _categoryIcon() {
     switch (item.category) {
@@ -358,11 +398,15 @@ class _InventoryListTile extends StatelessWidget {
   final InventoryItem item;
   final VoidCallback onEdit;
   final VoidCallback onHapus;
+  final bool canEdit;
+  final bool canDelete;
 
   const _InventoryListTile({
     required this.item,
     required this.onEdit,
     required this.onHapus,
+    required this.canEdit,
+    required this.canDelete,
   });
 
   @override
@@ -422,67 +466,85 @@ class _InventoryListTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              // Edit button
-              Expanded(
-                child: GestureDetector(
-                  onTap: onEdit,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.edit_rounded,
-                            color: AppColors.primary, size: 16),
-                        SizedBox(width: 6),
-                        Text('Edit',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              // Hapus button
-              Expanded(
-                child: GestureDetector(
-                  onTap: onHapus,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.dangerLight,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.delete_outline_rounded,
-                            color: AppColors.danger, size: 16),
-                        SizedBox(width: 6),
-                        Text('Hapus',
-                            style: TextStyle(
-                              color: AppColors.danger,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            )),
-                      ],
+          if (canEdit || canDelete) ...[
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                // Edit button
+                if (canEdit)
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: onEdit,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.edit_rounded,
+                                color: AppColors.primary, size: 16),
+                            SizedBox(width: 6),
+                            Text('Edit',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                )),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
+                if (canEdit && canDelete) const SizedBox(width: 10),
+                // Hapus button
+                if (canDelete)
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: onHapus,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.dangerLight,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.delete_rounded,
+                                color: AppColors.danger, size: 16),
+                            SizedBox(width: 6),
+                            Text('Hapus',
+                                style: TextStyle(
+                                  color: AppColors.danger,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ] else ...[
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 10),
+            const Center(
+              child: Text(
+                'HANYA BACA (READ ONLY)',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textTertiary,
+                  letterSpacing: 1.5,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );
@@ -502,11 +564,12 @@ class _AddItemSheetState extends State<_AddItemSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _stockCtrl;
-  late final TextEditingController _minStockCtrl;
   late String _category;
-  late String _unit;
+  late String _kondisi;
+  File? _gambar;
 
   bool get _isEdit => widget.editData != null;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -514,25 +577,30 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     final d = widget.editData;
     _nameCtrl = TextEditingController(text: d?.name ?? '');
     _stockCtrl = TextEditingController(text: d != null ? '${d.currentStock}' : '');
-    _minStockCtrl = TextEditingController(text: d != null ? '${d.minStock}' : '');
-    _category = d?.category ?? 'Obat-obatan';
-    _unit = d?.unit ?? 'Pcs';
+    _category = d?.category ?? 'Sembako';
+    _kondisi = d?.kondisi ?? 'Baik';
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _stockCtrl.dispose();
-    _minStockCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picked != null) {
+      setState(() => _gambar = File(picked.path));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      resizeToAvoidBottomInset: true,
-      body: Align(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
           decoration: const BoxDecoration(
@@ -542,164 +610,197 @@ class _AddItemSheetState extends State<_AddItemSheet> {
           child: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.border,
-                        borderRadius: BorderRadius.circular(2),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(_isEdit ? 'Edit Item' : 'Tambah Item', style: AppTextStyle.h3),
-                  const SizedBox(height: 20),
-                  const Text('NAMA ITEM', style: AppTextStyle.label),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _nameCtrl,
-                    decoration:
-                        const InputDecoration(hintText: 'Nama item'),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Wajib diisi' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('KATEGORI', style: AppTextStyle.label),
-                            const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              initialValue: _category,
-                              decoration: const InputDecoration(),
-                              items: ['Obat-obatan', 'Kebersihan', 'Pangan']
-                                  .map((c) => DropdownMenuItem(
-                                      value: c, child: Text(c)))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _category = v!),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('SATUAN', style: AppTextStyle.label),
-                            const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              initialValue: _unit,
-                              decoration: const InputDecoration(),
-                              items: ['Pcs', 'Box', 'Kg', 'Liter', 'Botol', 'Strip']
-                                  .map((u) => DropdownMenuItem(
-                                      value: u, child: Text(u)))
-                                  .toList(),
-                              onChanged: (v) => setState(() => _unit = v!),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('STOK SAAT INI', style: AppTextStyle.label),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _stockCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(hintText: '0'),
-                              validator: (v) =>
-                                  v == null || v.isEmpty ? 'Wajib diisi' : null,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('STOK MINIMUM', style: AppTextStyle.label),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _minStockCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(hintText: '0'),
-                              validator: (v) =>
-                                  v == null || v.isEmpty ? 'Wajib diisi' : null,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  PrimaryButton(
-                    text: _isEdit ? 'SIMPAN PERUBAHAN' : 'SIMPAN ITEM',
-                    icon: Icons.check_rounded,
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        final stok = int.tryParse(_stockCtrl.text.trim()) ?? 0;
-                        final minStok = int.tryParse(_minStockCtrl.text.trim()) ?? 0;
-                        final newItem = InventoryItem(
-                          id: _isEdit
-                              ? widget.editData!.id
-                              : (AppData.inventoryItems.length + 1).toString(),
-                          name: _nameCtrl.text.trim(),
-                          category: _category,
-                          currentStock: stok,
-                          minStock: minStok,
-                          unit: _unit,
-                          status: stok <= minStok
-                              ? StockStatus.menipis
-                              : StockStatus.aman,
-                        );
-                        if (_isEdit) {
-                          final idx = AppData.inventoryItems
-                              .indexWhere((x) => x.id == widget.editData!.id);
-                          if (idx != -1) AppData.inventoryItems[idx] = newItem;
-                        } else {
-                          AppData.inventoryItems.add(newItem);
-                        }
-                        widget.onSaved();
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(_isEdit
-                                ? '${newItem.name} berhasil diperbarui!'
-                                : '${newItem.name} berhasil ditambahkan!'),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
+                    const SizedBox(height: 20),
+                    Text(_isEdit ? 'Edit Barang' : 'Tambah Barang', style: AppTextStyle.h3),
+                    const SizedBox(height: 20),
+
+                    // ── Nama Barang ─────────────────────────────────────
+                    const Text('NAMA BARANG', style: AppTextStyle.label),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _nameCtrl,
+                      decoration: const InputDecoration(hintText: 'Contoh: Beras Premium, Sabun Mandi...'),
+                      validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Jumlah Stok ─────────────────────────────────────
+                    const Text('JUMLAH STOK', style: AppTextStyle.label),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _stockCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(hintText: '0'),
+                      validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Kondisi Barang ───────────────────────────────────
+                    const Text('KONDISI BARANG', style: AppTextStyle.label),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _kondisi,
+                      decoration: const InputDecoration(),
+                      items: ['Baik', 'Cukup Baik', 'Rusak Ringan', 'Rusak Berat']
+                          .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+                          .toList(),
+                      onChanged: (v) => setState(() => _kondisi = v!),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Kategori ─────────────────────────────────────────
+                    const Text('KATEGORI', style: AppTextStyle.label),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _category,
+                      decoration: const InputDecoration(),
+                      items: ['Sembako', 'Kebutuhan Mandi', 'Pakaian', 'Pendidikan', 'Kesehatan', 'Lainnya']
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .toList(),
+                      onChanged: (v) => setState(() => _category = v!),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Foto Barang ──────────────────────────────────────
+                    const Text('FOTO BARANG (OPSIONAL)', style: AppTextStyle.label),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        width: double.infinity,
+                        height: _gambar != null ? 180 : 110,
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.border,
+                            width: 1.5,
+                            style: BorderStyle.solid,
                           ),
-                        );
-                      }
-                    },
-                  ),
-                ],
+                        ),
+                        child: _gambar != null
+                            ? Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Image.file(
+                                      _gambar!,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: GestureDetector(
+                                      onTap: () => setState(() => _gambar = null),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.close, color: Colors.white, size: 16),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_photo_alternate_outlined,
+                                      size: 36, color: AppColors.textSecondary),
+                                  const SizedBox(height: 8),
+                                  Text('Klik untuk upload foto barang',
+                                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  Text('JPG, PNG • Opsional',
+                                      style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                                ],
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Tombol Simpan ────────────────────────────────────
+                    PrimaryButton(
+                      text: _isEdit ? 'SIMPAN PERUBAHAN' : 'SIMPAN BARANG',
+                      icon: Icons.check_rounded,
+                      isLoading: _isLoading,
+                      onPressed: _isLoading ? null : () async {
+                        if (_formKey.currentState!.validate()) {
+                          setState(() => _isLoading = true);
+                          final stok = int.tryParse(_stockCtrl.text.trim()) ?? 0;
+                          final data = {
+                            'nama_barang': _nameCtrl.text.trim(),
+                            'stok': stok,
+                            'kondisi': _kondisi,
+                            'kategori': _category,
+                          };
+                          bool success = false;
+                          if (_isEdit) {
+                            success = await InventarisService.updateInventaris(
+                              widget.editData!.id,
+                              data,
+                              gambar: _gambar,
+                            );
+                          } else {
+                            success = await InventarisService.createInventaris(
+                              data,
+                              gambar: _gambar,
+                            );
+                          }
+                          if (mounted) {
+                            setState(() => _isLoading = false);
+                            if (success) {
+                              widget.onSaved();
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(_isEdit
+                                      ? '${_nameCtrl.text} berhasil diperbarui!'
+                                      : '${_nameCtrl.text} berhasil ditambahkan!'),
+                                  backgroundColor: AppColors.success,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Gagal menyimpan ke server!'),
+                                  backgroundColor: AppColors.danger,
+                                ),
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

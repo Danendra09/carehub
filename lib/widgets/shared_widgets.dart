@@ -1,6 +1,134 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/api_endpoints.dart';
 import '../theme/app_theme.dart';
 import '../screens/profil/profil_screen.dart';
+
+// ─── Reusable Delete Confirmation Dialog ─────────────────────────────────────
+Future<void> showDeleteConfirmDialog({
+  required BuildContext context,
+  required String title,
+  required String message,
+  required Future<void> Function() onConfirm,
+}) async {
+  return showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: Colors.white,
+      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+      contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      content: Text(
+        message,
+        style: const TextStyle(fontSize: 14, color: Colors.black54, height: 1.5),
+      ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFE0E0E0)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    backgroundColor: const Color(0xFFF5F5F5),
+                  ),
+                  child: const Text(
+                    'Batal',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black54,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await onConfirm();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.danger,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text(
+                    'Hapus',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+// ─── Empty State Widget ───────────────────────────────────────────────────────
+class EmptyStateWidget extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const EmptyStateWidget({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 48, color: AppColors.primary),
+          ),
+          const SizedBox(height: 16),
+          Text(title, style: AppTextStyle.h3),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 // ─── CareHub Logo Widget ──────────────────────────────────────────────────────
 class CareHubLogo extends StatelessWidget {
@@ -235,6 +363,90 @@ class IconBox extends StatelessWidget {
   }
 }
 
+// ─── Avatar Dinamis ──────────────────────────────────────────────────────────
+class CareHubAvatar extends StatefulWidget {
+  final VoidCallback? onProfileTap;
+  final String? overrideUrl;
+  final double size;
+  final File? overrideFile;
+
+  const CareHubAvatar({
+    super.key,
+    this.onProfileTap,
+    this.overrideUrl,
+    this.size = 36,
+    this.overrideFile,
+  });
+
+  @override
+  State<CareHubAvatar> createState() => _CareHubAvatarState();
+}
+
+class _CareHubAvatarState extends State<CareHubAvatar> {
+  String? _fotoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.overrideUrl != null && widget.overrideUrl!.isNotEmpty) {
+      _fotoUrl = widget.overrideUrl;
+    } else {
+      _loadFoto();
+    }
+  }
+
+  Future<void> _loadFoto() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? rawFoto = prefs.getString('user_foto');
+    if (rawFoto != null && rawFoto.isNotEmpty) {
+      if (rawFoto.startsWith('http')) {
+        _fotoUrl = rawFoto;
+      } else {
+        if (rawFoto.startsWith('/')) rawFoto = rawFoto.substring(1);
+        _fotoUrl = '${ApiEndpoints.baseStorageUrl}/$rawFoto';
+      }
+      if (mounted) setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onProfileTap,
+      child: Container(
+        width: widget.size,
+        height: widget.size,
+        margin: widget.size <= 40 ? const EdgeInsets.only(left: 2, right: 8) : EdgeInsets.zero,
+        decoration: BoxDecoration(
+          color: AppColors.primaryLight,
+          shape: BoxShape.circle,
+          border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.5), width: widget.size > 40 ? 2.0 : 1.5),
+          image: widget.overrideFile != null
+              ? DecorationImage(
+                  image: FileImage(widget.overrideFile!),
+                  fit: BoxFit.cover,
+                )
+              : (_fotoUrl != null && _fotoUrl!.isNotEmpty)
+                  ? DecorationImage(
+                      image: NetworkImage(_fotoUrl!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+        ),
+        child: (widget.overrideFile == null && (_fotoUrl == null || _fotoUrl!.isEmpty))
+            ? Icon(
+                Icons.person_rounded,
+                color: AppColors.primary,
+                size: widget.size * 0.55,
+              )
+            : null,
+      ),
+    );
+  }
+}
+
+
 // ─── Custom App Bar ───────────────────────────────────────────────────────────
 class CareHubAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget? leading;
@@ -242,6 +454,8 @@ class CareHubAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? titleText;
   final VoidCallback? onProfileTap;
   final VoidCallback? onNotifTap;
+  final bool showAvatar;
+  final String? avatarUrl;
 
   const CareHubAppBar({
     super.key,
@@ -250,9 +464,8 @@ class CareHubAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.titleText,
     this.onProfileTap,
     this.onNotifTap,
-    // kept for backward compat — ignored
-    bool showAvatar = false,
-    String? avatarUrl,
+    this.showAvatar = false,
+    this.avatarUrl,
   });
 
   @override
@@ -286,57 +499,11 @@ class CareHubAppBar extends StatelessWidget implements PreferredSizeWidget {
           ],
           const Spacer(),
           ...?actions,
-          // Notif & Avatar hanya di halaman utama (bukan push screen)
-          if (!canPop) ...[
-            // ── Notifikasi ──
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined,
-                      color: AppColors.textPrimary, size: 24),
-                  onPressed: onNotifTap ?? () {},
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppColors.danger,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            // ── Avatar Profil ──
-            GestureDetector(
-              onTap: onProfileTap ?? () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ProfilScreen()),
-                );
-              },
-              child: Container(
-                width: 36,
-                height: 36,
-                margin: const EdgeInsets.only(left: 2, right: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-            ),
-          ],
+          // ── Avatar Profil (selalu tampil di semua halaman) ──
+          CareHubAvatar(
+            onProfileTap: onProfileTap ?? () => Navigator.pushNamed(context, '/profil'),
+            overrideUrl: avatarUrl,
+          ),
         ],
       ),
     );

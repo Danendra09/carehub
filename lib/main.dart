@@ -2,8 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme/app_theme.dart';
 import 'screens/splash/splash_screen.dart';
+import 'screens/inventaris/inventaris_screen.dart';
+import 'screens/kunjungan_tamu/kunjungan_tamu_screen.dart';
+import 'screens/audit/audit_screen.dart';
+import 'screens/struktur/struktur_screen.dart';
+
+import 'screens/auth/forgot_password_screen.dart';
+import 'screens/profil/profil_screen.dart';
+import 'dart:io';
+
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
+}
 
 void main() {
+  HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -55,6 +72,15 @@ class CareHubApp extends StatelessWidget {
       // Hilangkan efek lonjong/stretch saat overscroll (Android 12+)
       scrollBehavior: const _CareHubScrollBehavior(),
       home: const SplashScreen(),
+      routes: {
+        '/inventaris': (context) => const InventarisScreen(),
+        '/kunjungan_tamu': (context) => const KunjunganTamuScreen(),
+        '/audit': (context) => const AuditScreen(),
+        '/struktur': (context) => const StrukturScreen(),
+
+        '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/profil': (context) => const ProfilScreen(),
+      },
     );
   }
 }

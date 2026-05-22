@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../models/models.dart';
 import '../../widgets/shared_widgets.dart';
+import '../../services/keuangan_service.dart';
+import '../../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class KeuanganScreen extends StatefulWidget {
   const KeuanganScreen({super.key});
@@ -13,11 +16,64 @@ class KeuanganScreen extends StatefulWidget {
 class _KeuanganScreenState extends State<KeuanganScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  List<TransactionModel> _transactions = [];
+  bool _isLoading = true;
+  double _totalPemasukan = 0;
+  double _totalPengeluaran = 0;
+
+  bool _canCreate = false;
+  bool _canDelete = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadPermissions();
+    _fetchKeuangan();
+  }
+
+  Future<void> _loadPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('user_role') ?? '';
+    final isAdmin = role.toLowerCase() == 'admin' || role.toLowerCase() == 'superadmin';
+    
+    final create = await AuthService.hasPermission('create_keuangan');
+    final delete = await AuthService.hasPermission('delete_keuangan');
+    
+    if (mounted) {
+      setState(() {
+        _canCreate = isAdmin || create;
+        _canDelete = isAdmin || delete;
+      });
+    }
+  }
+
+  Future<void> _fetchKeuangan() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await KeuanganService.getKeuangan();
+      final list = data.map((e) => TransactionModel.fromJson(e)).toList();
+      double masuk = 0, keluar = 0;
+      for (final t in list) {
+        if (t.type == TransactionType.income) masuk += t.amount;
+        else keluar += t.amount;
+      }
+      if (mounted) {
+        setState(() {
+          _transactions = list;
+          _totalPemasukan = masuk;
+          _totalPengeluaran = keluar;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat data: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -26,33 +82,19 @@ class _KeuanganScreenState extends State<KeuanganScreen>
     super.dispose();
   }
 
-  String _formatRupiah(double amount) {
-    if (amount >= 1000000) {
-      final val = amount / 1000000;
-      return 'Rp ${val % 1 == 0 ? val.toStringAsFixed(0) : val.toStringAsFixed(3)}.000';
-    }
-    return 'Rp ${amount.toStringAsFixed(0)}';
-  }
-
-  String _formatShort(double amount) {
-    if (amount >= 1000000) {
-      return 'Rp ${(amount / 1000000).toStringAsFixed(3)}.000';
-    } else if (amount >= 1000) {
-      return 'Rp ${(amount / 1000).toStringAsFixed(0)}.000';
-    }
-    return 'Rp ${amount.toStringAsFixed(0)}';
-  }
 
   List<TransactionModel> _getFiltered(int tabIndex) {
-    if (tabIndex == 0) return AppData.transactions;
+    if (tabIndex == 0) return _transactions;
     if (tabIndex == 1) {
-      return AppData.transactions
-          .where((t) => t.type == TransactionType.income)
-          .toList();
+      return _transactions.where((t) => t.type == TransactionType.income).toList();
     }
-    return AppData.transactions
-        .where((t) => t.type == TransactionType.expense)
-        .toList();
+    return _transactions.where((t) => t.type == TransactionType.expense).toList();
+  }
+
+  String _formatRp(double v) {
+    if (v >= 1000000) return 'Rp ${(v / 1000000).toStringAsFixed(1)}jt';
+    if (v >= 1000) return 'Rp ${(v / 1000).toStringAsFixed(0)}rb';
+    return 'Rp ${v.toStringAsFixed(0)}';
   }
 
   @override
@@ -60,111 +102,109 @@ class _KeuanganScreenState extends State<KeuanganScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: false,
-      body: CustomScrollView(
-        slivers: [
-          const SliverToBoxAdapter(
-            child: CareHubAppBar(),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const Text('LAPORAN KEUANGAN', style: AppTextStyle.label),
-                const SizedBox(height: 4),
-                const Text('Ringkasan Saldo', style: AppTextStyle.h2),
-
-                const SizedBox(height: 20),
-
-                // Income card
-                const _SummaryCard(
-                  label: 'TOTAL PEMASUKAN',
-                  amount: 'Rp 12.450.000',
-                  trend: '↑ 12% dari bulan lalu',
-                  trendPositive: true,
-                  icon: Icons.trending_up_rounded,
-                  iconBg: AppColors.successLight,
-                  iconColor: AppColors.success,
-                ),
-
-                const SizedBox(height: 12),
-
-                // Expense card
-                const _SummaryCard(
-                  label: 'TOTAL PENGELUARAN',
-                  amount: 'Rp 4.120.000',
-                  trend: '↓ 5% lebih hemat',
-                  trendPositive: false,
-                  icon: Icons.trending_down_rounded,
-                  iconBg: AppColors.dangerLight,
-                  iconColor: AppColors.danger,
-                ),
-
-                const SizedBox(height: 24),
-
-                // Transactions header
-                SectionHeader(
-                  title: 'Riwayat Transaksi',
-                  actionText: 'Lihat Semua',
-                  onAction: () {},
-                ),
-
-                const SizedBox(height: 12),
-
-                // Filter tabs
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    onTap: (i) => setState(() {}),
-                    indicator: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    labelColor: Colors.white,
-                    unselectedLabelColor: AppColors.textSecondary,
-                    labelStyle: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600),
-                    dividerColor: Colors.transparent,
-                    padding: const EdgeInsets.all(4),
-                    tabs: const [
-                      Tab(text: 'Semua'),
-                      Tab(text: 'Pemasukan'),
-                      Tab(text: 'Pengeluaran'),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Transaction list
-                ..._getFiltered(_tabController.index)
-                    .map((t) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _TransactionCard(
-                            transaction: t,
-                            onHapus: () => _hapusTransaksi(context, t),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _fetchKeuangan,
+              child: CustomScrollView(
+                slivers: [
+                  const SliverToBoxAdapter(child: CareHubAppBar()),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        const Text('LAPORAN KEUANGAN', style: AppTextStyle.label),
+                        const SizedBox(height: 4),
+                        const Text('Ringkasan Saldo', style: AppTextStyle.h2),
+                        const SizedBox(height: 20),
+                        _SummaryCard(
+                          label: 'TOTAL PEMASUKAN',
+                          amount: _formatRp(_totalPemasukan),
+                          trend: '${_transactions.where((t) => t.type == TransactionType.income).length} transaksi masuk',
+                          trendPositive: true,
+                          icon: Icons.trending_up_rounded,
+                          iconBg: AppColors.successLight,
+                          iconColor: AppColors.success,
+                        ),
+                        const SizedBox(height: 12),
+                        _SummaryCard(
+                          label: 'TOTAL PENGELUARAN',
+                          amount: _formatRp(_totalPengeluaran),
+                          trend: '${_transactions.where((t) => t.type == TransactionType.expense).length} transaksi keluar',
+                          trendPositive: false,
+                          icon: Icons.trending_down_rounded,
+                          iconBg: AppColors.dangerLight,
+                          iconColor: AppColors.danger,
+                        ),
+                        const SizedBox(height: 24),
+                        SectionHeader(
+                          title: 'Riwayat Transaksi',
+                          actionText: 'Total: ${_transactions.length}',
+                          onAction: () {},
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        )),
-              ]),
+                          child: TabBar(
+                            controller: _tabController,
+                            onTap: (i) => setState(() {}),
+                            indicator: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            labelColor: Colors.white,
+                            unselectedLabelColor: AppColors.textSecondary,
+                            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            dividerColor: Colors.transparent,
+                            padding: const EdgeInsets.all(4),
+                            tabs: const [
+                              Tab(text: 'Semua'),
+                              Tab(text: 'Pemasukan'),
+                              Tab(text: 'Pengeluaran'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (_getFiltered(_tabController.index).isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 40),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textTertiary),
+                                const SizedBox(height: 12),
+                                const Text('Belum ada transaksi', style: AppTextStyle.bodySmall),
+                              ],
+                            ),
+                          )
+                        else
+                          ..._getFiltered(_tabController.index).map((t) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _TransactionCard(
+                                  transaction: t,
+                                  canDelete: _canDelete,
+                                  onHapus: () => _hapusTransaksi(context, t),
+                                ),
+                              )),
+                      ]),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: _canCreate ? FloatingActionButton.extended(
         heroTag: 'fab_keuangan',
         onPressed: () => _showAddTransactionSheet(context),
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
         label: const Text(
           'TAMBAH',
-          style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
         ),
-      ),
+      ) : null,
     );
   }
 
@@ -173,44 +213,24 @@ class _KeuanganScreenState extends State<KeuanganScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AddTransactionSheet(onSaved: () => setState(() {})),
+      builder: (_) => _AddTransactionSheet(onSaved: () => _fetchKeuangan()),
     );
   }
 
   void _hapusTransaksi(BuildContext ctx, TransactionModel t) {
-    showDialog(
+    showDeleteConfirmDialog(
       context: ctx,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus Transaksi'),
-        content: Text('Hapus transaksi "${t.title}" dari riwayat keuangan?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
-              minimumSize: const Size(80, 40),
-            ),
-            onPressed: () {
-              setState(() => AppData.transactions.removeWhere((x) => x.id == t.id));
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                SnackBar(
-                  content: const Text('Transaksi berhasil dihapus'),
-                  backgroundColor: AppColors.danger,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              );
-            },
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
+      title: 'Hapus Transaksi',
+      message: 'Hapus transaksi "${t.title}" dari riwayat keuangan?',
+      onConfirm: () async {
+        final success = await KeuanganService.deleteKeuangan(t.id);
+        if (success) {
+          _fetchKeuangan();
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Transaksi berhasil dihapus'), backgroundColor: AppColors.danger, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+        } else {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal menghapus transaksi'), backgroundColor: AppColors.danger));
+        }
+      },
     );
   }
 }
@@ -292,10 +312,12 @@ class _SummaryCard extends StatelessWidget {
 class _TransactionCard extends StatelessWidget {
   final TransactionModel transaction;
   final VoidCallback onHapus;
+  final bool canDelete;
 
   const _TransactionCard({
     required this.transaction,
     required this.onHapus,
+    required this.canDelete,
   });
 
   @override
@@ -354,33 +376,49 @@ class _TransactionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 12),
-          // Tombol Hapus Full-Width
-          GestureDetector(
-            onTap: onHapus,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.dangerLight,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.delete_outline_rounded,
-                      color: AppColors.danger, size: 16),
-                  SizedBox(width: 6),
-                  Text('Hapus',
-                      style: TextStyle(
-                        color: AppColors.danger,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      )),
-                ],
+          if (canDelete) ...[
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 12),
+            // Tombol Hapus Full-Width
+            GestureDetector(
+              onTap: onHapus,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.dangerLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.delete_outline_rounded,
+                        color: AppColors.danger, size: 16),
+                    SizedBox(width: 6),
+                    Text('Hapus',
+                        style: TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        )),
+                  ],
+                ),
               ),
             ),
-          ),
+          ] else ...[
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 10),
+            const Center(
+              child: Text(
+                'HANYA BACA (READ ONLY)',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textTertiary,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -411,13 +449,13 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
   final _amountCtrl = TextEditingController();
   String _type = 'income';
   String _category = 'Donasi';
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      resizeToAvoidBottomInset: true,
-      body: Align(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
           decoration: const BoxDecoration(
@@ -508,31 +546,37 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
                 PrimaryButton(
                   text: 'SIMPAN TRANSAKSI',
                   icon: Icons.check_rounded,
-                  onPressed: () {
+                  isLoading: _isLoading,
+                  onPressed: _isLoading ? null : () async {
                     if (_formKey.currentState!.validate()) {
-                      final now = DateTime.now();
-                      final bulan = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-                      final newT = TransactionModel(
-                        id: (AppData.transactions.length + 1).toString(),
-                        title: _titleCtrl.text.trim(),
-                        subtitle: _category,
-                        date: '${now.day} ${bulan[now.month]} ${now.year}',
-                        amount: double.tryParse(_amountCtrl.text.trim().replaceAll('.', '').replaceAll(',', '')) ?? 0,
-                        type: _type == 'income' ? TransactionType.income : TransactionType.expense,
-                        category: _category,
-                      );
-                      AppData.transactions.insert(0, newT);
-                      widget.onSaved();
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Transaksi berhasil disimpan'),
-                          backgroundColor: AppColors.success,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                      );
+                      setState(() => _isLoading = true);
+                      final amount = double.tryParse(
+                          _amountCtrl.text.trim().replaceAll('.', '').replaceAll(',', '')) ?? 0;
+                      final success = await KeuanganService.createKeuangan({
+                        'jumlah_nominal': amount,
+                        'jenis_transaksi': _type == 'income' ? 'Pemasukan' : 'Pengeluaran',
+                        'kategori': _category,
+                        'keterangan': _titleCtrl.text.trim(),
+                      });
+                      if (mounted) {
+                        setState(() => _isLoading = false);
+                        if (success) {
+                          widget.onSaved();
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Transaksi berhasil disimpan'),
+                              backgroundColor: AppColors.success,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Gagal menyimpan ke server!'), backgroundColor: AppColors.danger),
+                          );
+                        }
+                      }
                     }
                   },
                 ),

@@ -1,6 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/shared_widgets.dart';
+import '../../utils/api_endpoints.dart';
+import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
 
 class ProfilScreen extends StatefulWidget {
@@ -12,9 +17,79 @@ class ProfilScreen extends StatefulWidget {
 
 class _ProfilScreenState extends State<ProfilScreen> {
   // Data profil (dummy, nanti dari API)
-  String _nama = 'Admin Utama';
-  String _email = 'admin.utama@carehub.id';
-  final String _role = 'FULL ACCESS';
+  String _nama = 'Admin';
+  String _email = '';
+  String _role = '';
+  String? _fotoUrl;
+  File? _pickedImage;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _nama = prefs.getString('user_name') ?? 'Admin';
+      String rawRole = prefs.getString('user_role') ?? '';
+      _role = (rawRole.toLowerCase() == 'admin') ? 'Kepala Panti' : rawRole;
+      _email = prefs.getString('user_email') ?? ''; // Email mungkin tidak tersimpan di prefs, akan kita tangani
+
+      String? rawFoto = prefs.getString('user_foto');
+      if (rawFoto != null && rawFoto.isNotEmpty) {
+        if (rawFoto.startsWith('http')) {
+          _fotoUrl = rawFoto;
+        } else {
+          if (rawFoto.startsWith('/')) rawFoto = rawFoto.substring(1);
+          _fotoUrl = '${ApiEndpoints.baseStorageUrl}/$rawFoto';
+        }
+      }
+    });
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+
+    if (pickedFile != null) {
+      setState(() => _pickedImage = File(pickedFile.path));
+      
+      // Langsung upload jika ada perubahan gambar
+      _showLoadingDialog();
+      final response = await AuthService.updateProfile(_nama, _email, _pickedImage);
+      Navigator.pop(context); // Tutup loading
+
+      if (response['success']) {
+        await _loadProfileData(); // Reload foto dari prefs
+        _showSuccess(response['message']);
+      } else {
+        _showError(response['message']);
+      }
+    }
+  }
+
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message), backgroundColor: AppColors.danger, behavior: SnackBarBehavior.floating,
+    ));
+  }
 
   void _showEditProfilSheet() {
     showModalBottomSheet(
@@ -24,11 +99,20 @@ class _ProfilScreenState extends State<ProfilScreen> {
       builder: (_) => _EditProfilSheet(
         nama: _nama,
         email: _email,
-        onSaved: (nama, email) {
-          setState(() {
-            _nama = nama;
-            _email = email;
-          });
+        onSaved: (nama, email) async {
+          _showLoadingDialog();
+          final res = await AuthService.updateProfile(nama, email, null);
+          Navigator.pop(context); // Tutup dialog
+
+          if (res['success']) {
+            setState(() {
+              _nama = nama;
+              _email = email;
+            });
+            _showSuccess(res['message']);
+          } else {
+            _showError(res['message']);
+          }
         },
       ),
     );
@@ -39,7 +123,19 @@ class _ProfilScreenState extends State<ProfilScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _ChangePasswordSheet(),
+      builder: (_) => _ChangePasswordSheet(
+        onSaved: (oldPass, newPass) async {
+          _showLoadingDialog();
+          final res = await AuthService.updatePassword(oldPass, newPass);
+          Navigator.pop(context); // Tutup dialog
+
+          if (res['success']) {
+            _showSuccess(res['message']);
+          } else {
+            _showError(res['message']);
+          }
+        },
+      ),
     );
   }
 
@@ -51,23 +147,45 @@ class _ProfilScreenState extends State<ProfilScreen> {
         title: const Text('Logout'),
         content: const Text('Apakah Anda yakin ingin keluar dari sesi ini?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
-              minimumSize: const Size(80, 36),
-            ),
-            onPressed: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (_) => false,
-              );
-            },
-            child: const Text('Logout'),
-          ),
+          SizedBox(width: double.maxFinite, child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[300], 
+                    foregroundColor: Colors.black87, 
+                    elevation: 0,
+                    minimumSize: const Size(double.infinity, 44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ), 
+                  onPressed: () => Navigator.pop(context), 
+                  child: const Text('Batal')
+                )
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.danger,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    minimumSize: const Size(double.infinity, 44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    _showLoadingDialog();
+                    await AuthService.logout();
+                    Navigator.pop(context); // Tutup loading
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (_) => false,
+                    );
+                  },
+                  child: const Text('Logout'),
+                )
+              ),
+            ],
+          )),
         ],
       ),
     );
@@ -102,30 +220,16 @@ class _ProfilScreenState extends State<ProfilScreen> {
                     children: [
                       Stack(
                         children: [
-                          Container(
-                            width: 90,
-                            height: 90,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: AppColors.primary
-                                      .withValues(alpha: 0.5),
-                                  width: 2),
-                            ),
-                            child: const Icon(Icons.person_rounded,
-                                color: Colors.white70, size: 46),
+                          CareHubAvatar(
+                            size: 90,
+                            overrideFile: _pickedImage,
+                            onProfileTap: () {}, // Kosongkan agar tidak ngeklik push ulang
                           ),
                           Positioned(
                             bottom: 0,
                             right: 0,
                             child: GestureDetector(
-                              onTap: () => ScaffoldMessenger.of(context)
-                                  .showSnackBar(const SnackBar(
-                                content: Text(
-                                    'Upload foto aktif setelah koneksi ke backend'),
-                                behavior: SnackBarBehavior.floating,
-                              )),
+                              onTap: _pickImage,
                               child: Container(
                                 width: 28,
                                 height: 28,
@@ -267,43 +371,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
                   onTap: _showChangePasswordSheet,
                 ),
 
-                const SizedBox(height: 24),
-
-                // ── Pengaturan Aplikasi ───────────────────────────────────────
-                const Text('PENGATURAN APLIKASI', style: AppTextStyle.label),
-                const SizedBox(height: 12),
-
-                AppCard(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.warningLight,
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: const Icon(Icons.notifications_rounded,
-                            color: AppColors.warning, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text('Notifikasi',
-                            style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w600)),
-                      ),
-                      Switch(
-                        value: true,
-                        onChanged: (_) {},
-                        activeColor: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
                 // ── Logout ───────────────────────────────────────────────────
                 GestureDetector(
@@ -412,14 +480,12 @@ class _SecurityItem extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color? subtitleColor;
   final VoidCallback onTap;
 
   const _SecurityItem({
     required this.icon,
     required this.title,
     required this.subtitle,
-    this.subtitleColor,
     required this.onTap,
   });
 
@@ -450,12 +516,10 @@ class _SecurityItem extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
-                    color: subtitleColor ?? AppColors.textSecondary,
-                    fontWeight: subtitleColor != null
-                        ? FontWeight.w600
-                        : FontWeight.w400,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
@@ -508,22 +572,13 @@ class _EditProfilSheetState extends State<_EditProfilSheet> {
     if (!_formKey.currentState!.validate()) return;
     widget.onSaved(_namaCtrl.text.trim(), _emailCtrl.text.trim());
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Profil berhasil diperbarui!'),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      resizeToAvoidBottomInset: true,
-      body: Align(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
           decoration: const BoxDecoration(
@@ -605,7 +660,8 @@ class _EditProfilSheetState extends State<_EditProfilSheet> {
 
 // ─── Change Password Sheet ────────────────────────────────────────────────────
 class _ChangePasswordSheet extends StatefulWidget {
-  const _ChangePasswordSheet();
+  final void Function(String oldPass, String newPass) onSaved;
+  const _ChangePasswordSheet({required this.onSaved});
 
   @override
   State<_ChangePasswordSheet> createState() => _ChangePasswordSheetState();
@@ -631,23 +687,15 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
 
   void _simpan() {
     if (!_formKey.currentState!.validate()) return;
+    widget.onSaved(_oldCtrl.text, _newCtrl.text);
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Password berhasil diubah!'),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      resizeToAvoidBottomInset: true,
-      body: Align(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
           decoration: const BoxDecoration(
@@ -727,8 +775,9 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                     ),
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
-                      if (v.length < 8)
+                      if (v.length < 8) {
                         return 'Minimal 8 karakter';
+                      }
                       return null;
                     },
                   ),
@@ -759,8 +808,9 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                     ),
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
-                      if (v != _newCtrl.text)
+                      if (v != _newCtrl.text) {
                         return 'Password tidak cocok';
+                      }
                       return null;
                     },
                   ),

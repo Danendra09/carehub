@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
-import '../home/home_screen.dart';
-import '../anak/anak_screen.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../manajemen_anak/manajemen_anak_screen.dart';
 import '../keuangan/keuangan_screen.dart';
-import '../inventaris/inventaris_screen.dart';
-import '../artikel/artikel_screen.dart';
 import '../profil/profil_screen.dart';
+import '../inventaris/inventaris_screen.dart';
+import '../kunjungan_tamu/kunjungan_tamu_screen.dart';
+import '../audit/audit_screen.dart';
+import '../../services/auth_service.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,33 +20,129 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    AnakScreen(),
+  final List<Widget> _allScreens = const [
+    DashboardScreen(),
+    ManajemenAnakScreen(),
     KeuanganScreen(),
+    KunjunganTamuScreen(),
     InventarisScreen(),
-    ArtikelScreen(),
   ];
+
+  List<Widget> _activeScreens = [];
+  List<Map<String, dynamic>> _activeNavItems = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPermissions();
+  }
+
+  Future<void> _loadPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('user_role') ?? '';
+    final isAdmin = role.toLowerCase() == 'admin' || role.toLowerCase() == 'superadmin';
+    final hasAnak = await AuthService.hasPermission('view_anak');
+    final hasKeuangan = await AuthService.hasPermission('view_keuangan');
+    final hasTamu = await AuthService.hasPermission('view_kunjungan');
+    final hasInventori = await AuthService.hasPermission('view_inventori');
+    final hasSuratAtauAudit = await AuthService.hasPermission('view_audit') || await AuthService.hasPermission('view_surat');
+
+    setState(() {
+      _activeScreens.clear();
+      _activeNavItems.clear();
+
+      // 1. Selalu tambahkan Dashboard (Home)
+      _activeScreens.add(const DashboardScreen());
+      _activeNavItems.add({
+        'icon': Icons.home_rounded,
+        'iconOutlined': Icons.home_outlined,
+        'label': 'Home',
+      });
+
+      // 2. Modul Anak
+      if (isAdmin || hasAnak) {
+        _activeScreens.add(const ManajemenAnakScreen());
+        _activeNavItems.add({
+          'icon': Icons.sentiment_satisfied_rounded,
+          'iconOutlined': Icons.sentiment_satisfied_alt_outlined,
+          'label': 'Anak',
+        });
+      }
+
+      // 3. Modul Keuangan
+      if (isAdmin || hasKeuangan) {
+        _activeScreens.add(const KeuanganScreen());
+        _activeNavItems.add({
+          'icon': Icons.account_balance_wallet_rounded,
+          'iconOutlined': Icons.account_balance_wallet_outlined,
+          'label': 'Keuangan',
+        });
+      }
+
+      // 4. Modul Tamu
+      if (isAdmin || hasTamu) {
+        _activeScreens.add(const KunjunganTamuScreen());
+        _activeNavItems.add({
+          'icon': Icons.groups_rounded,
+          'iconOutlined': Icons.groups_outlined,
+          'label': 'Tamu',
+        });
+      }
+
+      // 5. Modul Inventaris
+      // Khusus Kepala Panti (admin) disembunyikan karena sudah ada di menu aksi cepat
+      if (!isAdmin && hasInventori) {
+        _activeScreens.add(const InventarisScreen());
+        _activeNavItems.add({
+          'icon': Icons.inventory_2_rounded,
+          'iconOutlined': Icons.inventory_2_outlined,
+          'label': 'Inventaris',
+        });
+      }
+
+      // 6. Modul Audit & Surat
+      // Khusus Kepala Panti (admin) disembunyikan karena sudah ada di menu aksi cepat
+      if (!isAdmin && hasSuratAtauAudit) {
+        _activeScreens.add(const AuditScreen());
+        _activeNavItems.add({
+          'icon': Icons.folder_shared_rounded,
+          'iconOutlined': Icons.folder_shared_outlined,
+          'label': 'Audit',
+        });
+      }
+
+      // 7. Profil (Akun)
+      // Kepala Panti (admin) disembunyikan karena sudah ada di pojok kanan atas AppBar
+      if (!isAdmin) {
+        _activeScreens.add(const ProfilScreen());
+        _activeNavItems.add({
+          'icon': Icons.person_rounded,
+          'iconOutlined': Icons.person_outline_rounded,
+          'label': 'Akun',
+        });
+      }
+
+      _isLoading = false;
+    });
+  }
+
 
   void _switchTab(int index) {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _currentIndex = index);
   }
 
-  void _goToProfile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ProfilScreen()),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: _activeScreens[_currentIndex],
       bottomNavigationBar: _buildBottomNav(),
     );
   }
@@ -61,48 +160,19 @@ class _MainScreenState extends State<MainScreen> {
           height: 62,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                iconOutlined: Icons.home_outlined,
-                label: 'Home',
-                index: 0,
-                currentIndex: _currentIndex,
-                onTap: () => _switchTab(0),
-              ),
-              _NavItem(
-                icon: Icons.sentiment_satisfied_rounded,
-                iconOutlined: Icons.sentiment_satisfied_alt_outlined,
-                label: 'Anak',
-                index: 1,
-                currentIndex: _currentIndex,
-                onTap: () => _switchTab(1),
-              ),
-              _NavItem(
-                icon: Icons.account_balance_wallet_rounded,
-                iconOutlined: Icons.account_balance_wallet_outlined,
-                label: 'Keuangan',
-                index: 2,
-                currentIndex: _currentIndex,
-                onTap: () => _switchTab(2),
-              ),
-              _NavItem(
-                icon: Icons.inventory_2_rounded,
-                iconOutlined: Icons.inventory_2_outlined,
-                label: 'Inventaris',
-                index: 3,
-                currentIndex: _currentIndex,
-                onTap: () => _switchTab(3),
-              ),
-              _NavItem(
-                icon: Icons.newspaper_rounded,
-                iconOutlined: Icons.newspaper_outlined,
-                label: 'Artikel',
-                index: 4,
-                currentIndex: _currentIndex,
-                onTap: () => _switchTab(4),
-              ),
-            ],
+            children: List.generate(_activeNavItems.length, (index) {
+              final item = _activeNavItems[index];
+              return Expanded(
+                child: _NavItem(
+                  icon: item['icon'],
+                  iconOutlined: item['iconOutlined'],
+                  label: item['label'],
+                  index: index,
+                  currentIndex: _currentIndex,
+                  onTap: () => _switchTab(index),
+                ),
+              );
+            }),
           ),
         ),
       ),
@@ -134,8 +204,8 @@ class _NavItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 60,
+      child: Container(
+        color: Colors.transparent,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

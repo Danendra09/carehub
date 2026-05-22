@@ -2,19 +2,68 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../models/models.dart';
 import '../../widgets/shared_widgets.dart';
+import '../../services/anak_service.dart';
+import '../../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class AnakScreen extends StatefulWidget {
-  const AnakScreen({super.key});
+class ManajemenAnakScreen extends StatefulWidget {
+  const ManajemenAnakScreen({super.key});
 
   @override
-  State<AnakScreen> createState() => _AnakScreenState();
+  State<ManajemenAnakScreen> createState() => _ManajemenAnakScreenState();
 }
 
-class _AnakScreenState extends State<AnakScreen> {
+class _ManajemenAnakScreenState extends State<ManajemenAnakScreen> {
   final _searchCtrl = TextEditingController();
   String _query = '';
+  List<ChildModel> _anakList = [];
+  bool _isLoading = true;
+  bool _canCreate = false;
+  bool _canEdit = false;
+  bool _canDelete = false;
 
-  List<ChildModel> get _filtered => AppData.children
+  @override
+  void initState() {
+    super.initState();
+    _loadPermissions();
+    _fetchAnak();
+  }
+
+  Future<void> _loadPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('user_role') ?? '';
+    final isAdmin = role.toLowerCase() == 'admin' || role.toLowerCase() == 'superadmin';
+    
+    final create = await AuthService.hasPermission('create_anak');
+    final edit = await AuthService.hasPermission('edit_anak');
+    final delete = await AuthService.hasPermission('delete_anak');
+    
+    if (mounted) {
+      setState(() {
+        _canCreate = isAdmin || create;
+        _canEdit = isAdmin || edit;
+        _canDelete = isAdmin || delete;
+      });
+    }
+  }
+
+  Future<void> _fetchAnak() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await AnakService.getAnak();
+      if (mounted) setState(() => _anakList = data);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat data: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  List<ChildModel> get _filtered => _anakList
       .where((c) =>
           c.name.toLowerCase().contains(_query.toLowerCase()) ||
           c.tempatTglLahir.toLowerCase().contains(_query.toLowerCase()) ||
@@ -34,48 +83,27 @@ class _AnakScreenState extends State<AnakScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _AddChildSheet(
         editData: editData,
-        onSaved: () => setState(() {}),
+        onSaved: () => _fetchAnak(),
       ),
     );
   }
 
   void _hapusAnak(BuildContext ctx, ChildModel child) {
-    showDialog(
+    showDeleteConfirmDialog(
       context: ctx,
-      builder: (_) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus Data Anak'),
-        content: Text(
-            'Apakah Anda yakin ingin menghapus data ${child.name} dari database CareHub?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
-              minimumSize: const Size(80, 40),
-            ),
-            onPressed: () {
-              setState(() =>
-                  AppData.children.removeWhere((c) => c.id == child.id));
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                SnackBar(
-                  content: Text('Data ${child.name} berhasil dihapus'),
-                  backgroundColor: AppColors.danger,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              );
-            },
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
+      title: 'Hapus Data Anak',
+      message: 'Apakah Anda yakin ingin menghapus data ${child.name} dari database CareHub?',
+      onConfirm: () async {
+        setState(() => _isLoading = true);
+        final success = await AnakService.deleteAnak(child.id);
+        if (success) {
+          _fetchAnak();
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Data ${child.name} berhasil dihapus'), backgroundColor: AppColors.danger, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+        } else {
+          setState(() => _isLoading = false);
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal menghapus data'), backgroundColor: AppColors.danger));
+        }
+      },
     );
   }
 
@@ -85,8 +113,12 @@ class _AnakScreenState extends State<AnakScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: false,
-      body: CustomScrollView(
-        slivers: [
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator()) 
+        : RefreshIndicator(
+            onRefresh: _fetchAnak,
+            child: CustomScrollView(
+              slivers: [
           const SliverToBoxAdapter(child: CareHubAppBar()),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
@@ -117,34 +149,36 @@ class _AnakScreenState extends State<AnakScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: () => _showAddDialog(context),
-                      child: Container(
-                        height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add_rounded,
-                                color: Colors.white, size: 20),
-                            SizedBox(width: 6),
-                            Text(
-                              'Tambah',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                    if (_canCreate) ...[
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () => _showAddDialog(context),
+                        child: Container(
+                          height: 48,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_rounded,
+                                  color: Colors.white, size: 20),
+                              SizedBox(width: 6),
+                              Text(
+                                'Tambah',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
 
@@ -204,6 +238,8 @@ class _AnakScreenState extends State<AnakScreen> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _ChildCard(
                           child: child,
+                          canEdit: _canEdit,
+                          canDelete: _canDelete,
                           onEdit: () =>
                               _showAddDialog(context, editData: child),
                           onHapus: () => _hapusAnak(context, child),
@@ -214,7 +250,7 @@ class _AnakScreenState extends State<AnakScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -223,11 +259,15 @@ class _ChildCard extends StatelessWidget {
   final ChildModel child;
   final VoidCallback onEdit;
   final VoidCallback onHapus;
+  final bool canEdit;
+  final bool canDelete;
 
   const _ChildCard({
     required this.child,
     required this.onEdit,
     required this.onHapus,
+    required this.canEdit,
+    required this.canDelete,
   });
 
   StatusBadge _statusBadge() {
@@ -258,8 +298,8 @@ class _ChildCard extends StatelessWidget {
                     Text(
                       child.name,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
+                          fontWeight: FontWeight.w800, // Dipertebal sedikit
+                          fontSize: 20, // Diperbesar dari 16
                           color: AppColors.textPrimary),
                     ),
                     const SizedBox(height: 4),
@@ -276,14 +316,17 @@ class _ChildCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text('${child.age} Tahun • ${child.grade}',
-                            style: AppTextStyle.bodySmall),
+                            style: const TextStyle(
+                                fontSize: 14, // Diperbesar
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary)),
                       ],
                     ),
                     if (child.tempatTglLahir.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(child.tempatTglLahir,
                           style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 14, // Diperbesar dari 12
                               color: AppColors.textTertiary)),
                     ],
                   ],
@@ -305,96 +348,85 @@ class _ChildCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 14),
-          // Tombol aksi
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: onEdit,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.edit_rounded,
-                            color: AppColors.primary, size: 16),
-                        SizedBox(width: 6),
-                        Text('Edit',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: GestureDetector(
-                  onTap: onHapus,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.dangerLight,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.delete_outline_rounded,
-                            color: AppColors.danger, size: 16),
-                        SizedBox(width: 6),
-                        Text('Hapus',
-                            style: TextStyle(
-                              color: AppColors.danger,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            )),
-                      ],
+          if (canEdit || canDelete) ...[
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 14),
+            // Tombol aksi
+            Row(
+              children: [
+                if (canEdit)
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: onEdit,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.edit_rounded,
+                                color: AppColors.primary, size: 16),
+                            SizedBox(width: 6),
+                            Text('Edit',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                )),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
+                if (canEdit && canDelete) const SizedBox(width: 10),
+                if (canDelete)
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: onHapus,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.dangerLight,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.delete_rounded,
+                                color: AppColors.danger, size: 16),
+                            SizedBox(width: 6),
+                            Text('Hapus',
+                                style: TextStyle(
+                                  color: AppColors.danger,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ] else ...[
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 10),
+            const Center(
+              child: Text(
+                'HANYA BACA (READ ONLY)',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textTertiary,
+                  letterSpacing: 1.5,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ],
-      ),
-    );
-  }
-}
-
-// ─── Action Button ────────────────────────────────────────────────────────────
-class _ActionBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionBtn({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(9),
-        ),
-        child: Icon(icon, color: color, size: 18),
       ),
     );
   }
@@ -418,10 +450,11 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   late final TextEditingController _tempatCtrl;
   late final TextEditingController _riwayatCtrl;
   late String _selectedGender;
-  late String _selectedStatus;
   late String _selectedGrade;
+  final List<String> _pendidikanOptions = ['Belum Sekolah', 'TK', 'SD', 'SMP', 'SMA', 'Perguruan Tinggi', 'Lainnya'];
 
   bool get _isEdit => widget.editData != null;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -430,12 +463,14 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     _nameCtrl = TextEditingController(text: d?.name ?? '');
     _ageCtrl = TextEditingController(text: d != null ? '${d.age}' : '');
     _tempatCtrl = TextEditingController(text: d?.tempatTglLahir ?? '');
-    _riwayatCtrl =
-        TextEditingController(text: d?.riwayatKesehatan ?? 'Sehat');
-    _selectedGender =
-        d?.gender == Gender.female ? 'female' : 'male';
-    _selectedStatus = d?.status.name ?? 'sehat';
-    _selectedGrade = d?.grade ?? 'Kelas 1 SD';
+    _riwayatCtrl = TextEditingController(text: d?.riwayatKesehatan ?? 'Sehat');
+    _selectedGender = d?.gender == Gender.female ? 'female' : 'male';
+    
+    String existingGrade = d?.grade ?? '';
+    if (existingGrade.isNotEmpty && !_pendidikanOptions.contains(existingGrade)) {
+      _pendidikanOptions.add(existingGrade);
+    }
+    _selectedGrade = existingGrade.isEmpty ? 'Belum Sekolah' : existingGrade;
   }
 
   @override
@@ -447,56 +482,59 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     super.dispose();
   }
 
-  void _simpan() {
+  Future<void> _simpan() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final newChild = ChildModel(
-      id: _isEdit
-          ? widget.editData!.id
-          : (AppData.children.length + 1).toString(),
-      name: _nameCtrl.text.trim(),
-      age: int.tryParse(_ageCtrl.text.trim()) ?? 0,
-      gender:
-          _selectedGender == 'female' ? Gender.female : Gender.male,
-      status: ChildStatus.values.firstWhere((s) => s.name == _selectedStatus,
-          orElse: () => ChildStatus.sehat),
-      grade: _selectedGrade,
-      avatarInitials: _nameCtrl.text.trim().split(' ').take(2).map((w) => w[0].toUpperCase()).join(),
-      tempatTglLahir: _tempatCtrl.text.trim(),
-      riwayatKesehatan: _riwayatCtrl.text.trim().isEmpty
-          ? 'Sehat'
-          : _riwayatCtrl.text.trim(),
-    );
+    setState(() => _isLoading = true);
 
+    final data = {
+      'nama_lengkap': _nameCtrl.text.trim(),
+      'usia': int.tryParse(_ageCtrl.text.trim()) ?? 0,
+      'jenis_kelamin': _selectedGender == 'female' ? 'Perempuan' : 'Laki-laki',
+      'tempat_tgl_lahir': _tempatCtrl.text.trim(),
+      'info_pendidikan': _selectedGrade,
+      'riwayat_kesehatan': _riwayatCtrl.text.trim().isEmpty ? 'Sehat' : _riwayatCtrl.text.trim(),
+    };
+
+    bool success = false;
     if (_isEdit) {
-      final idx = AppData.children
-          .indexWhere((c) => c.id == widget.editData!.id);
-      if (idx != -1) AppData.children[idx] = newChild;
+      success = await AnakService.updateAnak(widget.editData!.id, data);
     } else {
-      AppData.children.add(newChild);
+      success = await AnakService.createAnak(data);
     }
 
-    widget.onSaved();
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_isEdit
-            ? 'Data ${newChild.name} berhasil diperbarui!'
-            : 'Data anak baru berhasil disimpan!'),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (success) {
+        widget.onSaved();
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_isEdit
+                ? 'Data ${_nameCtrl.text} berhasil diperbarui!'
+                : 'Data anak baru berhasil disimpan!'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal menyimpan data ke server!'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      resizeToAvoidBottomInset: true,
-      body: Align(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
         decoration: const BoxDecoration(
@@ -573,7 +611,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                             const _FieldLabel('Jenis Kelamin *'),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
-                              value: _selectedGender,
+                              initialValue: _selectedGender,
                               decoration: const InputDecoration(),
                               items: const [
                                 DropdownMenuItem(
@@ -605,62 +643,27 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Status + Kelas
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _FieldLabel('Status'),
-                            const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              value: _selectedStatus,
-                              decoration: const InputDecoration(),
-                              items: const [
-                                DropdownMenuItem(
-                                    value: 'sehat', child: Text('Sehat')),
-                                DropdownMenuItem(
-                                    value: 'pemulihan',
-                                    child: Text('Pemulihan')),
-                                DropdownMenuItem(
-                                    value: 'perhatian',
-                                    child: Text('Perhatian')),
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => _selectedStatus = v!),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _FieldLabel('Kelas'),
-                            const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              value: _selectedGrade,
-                              decoration: const InputDecoration(),
-                              items: [
-                                'Kelas 1 SD','Kelas 2 SD','Kelas 3 SD',
-                                'Kelas 4 SD','Kelas 5 SD','Kelas 6 SD',
-                                'Kelas 7 SMP','Kelas 8 SMP','Kelas 9 SMP',
-                              ]
-                                  .map((g) => DropdownMenuItem(
-                                      value: g,
-                                      child: Text(g,
-                                          style: const TextStyle(
-                                              fontSize: 11))))
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _selectedGrade = v!),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  // Kelas (Info Pendidikan)
+                  const _FieldLabel('Kelas / Info Pendidikan *'),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _selectedGrade,
+                    decoration: const InputDecoration(
+                      hintText: 'Pilih jenjang pendidikan',
+                    ),
+                    items: _pendidikanOptions.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value, style: AppTextStyle.body),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedGrade = newValue;
+                        });
+                      }
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -677,7 +680,8 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                   PrimaryButton(
                     text: _isEdit ? 'SIMPAN PERUBAHAN' : 'SIMPAN DATA',
                     icon: Icons.check_rounded,
-                    onPressed: _simpan,
+                    onPressed: _isLoading ? null : _simpan,
+                    isLoading: _isLoading,
                   ),
                   const SizedBox(height: 16),
                 ],
