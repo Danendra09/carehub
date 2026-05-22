@@ -554,37 +554,6 @@ class AppData {
     ),
   ];
 
-  static List<ArtikelModel> artikels = [
-    ArtikelModel(
-      id: '1',
-      judul: 'Kegiatan Belajar Bersama Anak Asuh CareHub',
-      konten:
-          'CareHub kembali menggelar kegiatan belajar bersama yang diikuti oleh seluruh anak asuh. Kegiatan ini bertujuan untuk meningkatkan semangat belajar dan mempersiapkan mereka menghadapi ujian semester. Pengajar sukarela dari berbagai universitas turut berpartisipasi dalam program ini.',
-      tanggal: '15 Okt 2023',
-    ),
-    ArtikelModel(
-      id: '2',
-      judul: 'Penerimaan Donasi dari PT. Maju Bersama',
-      konten:
-          'CareHub dengan bangga menerima donasi dari PT. Maju Bersama sebesar Rp 10.000.000. Dana ini akan digunakan untuk memenuhi kebutuhan sehari-hari anak asuh dan program pendidikan. Terima kasih atas kepercayaan dan kepedulian.',
-      tanggal: '10 Okt 2023',
-    ),
-    ArtikelModel(
-      id: '3',
-      judul: 'Perayaan Hari Anak Nasional di CareHub',
-      konten:
-          'Dalam rangka memperingati Hari Anak Nasional, CareHub mengadakan berbagai kegiatan menyenangkan. Mulai dari lomba mewarnai, pertunjukan seni, hingga pembagian hadiah bagi seluruh anak asuh.',
-      tanggal: '23 Jul 2023',
-    ),
-    ArtikelModel(
-      id: '4',
-      judul: 'Program Pemeriksaan Kesehatan Gratis',
-      konten:
-          'Bekerjasama dengan Puskesmas setempat, CareHub mengadakan pemeriksaan kesehatan gratis untuk seluruh anak asuh. Dokter dan tenaga medis hadir langsung untuk memeriksa kondisi kesehatan dan memberikan konsultasi nutrisi.',
-      tanggal: '5 Sep 2023',
-    ),
-  ];
-
   static List<double> cashflowData = [
     1200000,
     1500000,
