@@ -124,10 +124,9 @@ class _SplashScreenState extends State<SplashScreen>
                                     color: AppColors.primary,
                                     borderRadius: BorderRadius.circular(16),
                                   ),
-                                  child: const Icon(
-                                    Icons.home_rounded,
-                                    color: Colors.white,
-                                    size: 36,
+                                  child: Image.asset(
+                                    'assets/images/icon.png',
+                                    fit: BoxFit.contain,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -156,7 +155,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 const Text(
                                   'CAHAYA ASUHAN RUANG EMPATI',
                                   style: TextStyle(
-                                    fontSize: 7,
+                                    fontSize: 5,
                                     letterSpacing: 0.8,
                                     color: AppColors.textTertiary,
                                     fontWeight: FontWeight.w500,

@@ -149,10 +149,9 @@ class CareHubLogo extends StatelessWidget {
             color: AppColors.primary,
             borderRadius: BorderRadius.circular(size * 0.22),
           ),
-          child: Icon(
-            Icons.home_rounded,
-            color: Colors.white,
-            size: size * 0.55,
+          child: Image.asset(
+            'assets/images/icon.png',
+            fit: BoxFit.contain,
           ),
         ),
         const SizedBox(width: 8),
