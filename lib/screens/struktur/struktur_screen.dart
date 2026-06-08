@@ -9,11 +9,9 @@ class StrukturScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: const CareHubAppBar(titleText: 'Struktur Organisasi'),
       body: CustomScrollView(
         slivers: [
-          const SliverToBoxAdapter(
-            child: CareHubAppBar(titleText: 'Struktur Organisasi'),
-          ),
           SliverFillRemaining(
             child: Center(
               child: Text(

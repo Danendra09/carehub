@@ -101,6 +101,7 @@ class _KeuanganScreenState extends State<KeuanganScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: const CareHubAppBar(),
       resizeToAvoidBottomInset: false,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -108,7 +109,6 @@ class _KeuanganScreenState extends State<KeuanganScreen>
               onRefresh: _fetchKeuangan,
               child: CustomScrollView(
                 slivers: [
-                  const SliverToBoxAdapter(child: CareHubAppBar()),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
                     sliver: SliverList(

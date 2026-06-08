@@ -418,136 +418,14 @@ class _TamuScreenState extends State<TamuScreen> {
     BuildContext context,
     int index,
   ) {
-    showDialog(
+    showDeleteConfirmDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(28),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 86,
-                  height: 86,
-                  decoration: BoxDecoration(
-                    color: const Color(
-                        0xffFFF1F3),
-                    borderRadius:
-                        BorderRadius.circular(
-                            24),
-                  ),
-                  child: const Icon(
-                    Icons.warning_amber_rounded,
-                    color: Color(0xffFF0055),
-                    size: 50,
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                const Text(
-                  'Konfirmasi Tindakan',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                Text(
-                  'Hapus kunjungan tamu ini secara permanen?\nTINDAKAN INI TIDAK DAPAT DIBATALKAN.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.6,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        style:
-                            OutlinedButton.styleFrom(
-                          minimumSize:
-                              const Size.fromHeight(
-                                  56),
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                                        18),
-                          ),
-                        ),
-                        child: const Text(
-                          'BATAL',
-                          style: TextStyle(
-                            fontWeight:
-                                FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(width: 14),
-
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            kunjunganList
-                                .removeAt(index);
-                          });
-
-                          Navigator.pop(context);
-                        },
-                        style:
-                            ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color(
-                                  0xffFF0055),
-                          minimumSize:
-                              const Size.fromHeight(
-                                  56),
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                                        18),
-                          ),
-                        ),
-                        child: const Text(
-                          'LANJUTKAN',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight:
-                                FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
+      title: 'Hapus Kunjungan Tamu',
+      message: 'Apakah Anda yakin ingin menghapus kunjungan tamu ini secara permanen? Tindakan ini tidak dapat dibatalkan.',
+      onConfirm: () async {
+        setState(() {
+          kunjunganList.removeAt(index);
+        });
       },
     );
   }
@@ -571,7 +449,7 @@ class _TamuScreenState extends State<TamuScreen> {
     return Scaffold(
       backgroundColor:
           const Color(0xffF5F7FB),
-
+      appBar: const CareHubAppBar(),
       floatingActionButton:
           FloatingActionButton.extended(
         backgroundColor: AppColors.primary,
@@ -594,10 +472,6 @@ class _TamuScreenState extends State<TamuScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            const SliverToBoxAdapter(
-              child: CareHubAppBar(),
-            ),
-
             SliverPadding(
               padding: const EdgeInsets.all(20),
               sliver: SliverList(

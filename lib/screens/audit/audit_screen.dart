@@ -51,11 +51,9 @@ class _AuditScreenState extends State<AuditScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: const CareHubAppBar(titleText: 'Audit'),
       body: CustomScrollView(
         slivers: [
-          const SliverToBoxAdapter(
-            child: CareHubAppBar(),
-          ),
           SliverPadding(
             padding: const EdgeInsets.all(20),
             sliver: SliverList(

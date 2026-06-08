@@ -142,50 +142,74 @@ class _ProfilScreenState extends State<ProfilScreen> {
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Logout'),
-        content: const Text('Apakah Anda yakin ingin keluar dari sesi ini?'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 24, 16),
+        title: const Text(
+          'Logout',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin keluar dari sesi ini?',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.black54,
+            height: 1.5,
+          ),
+        ),
         actions: [
-          SizedBox(width: double.maxFinite, child: Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[300], 
-                    foregroundColor: Colors.black87, 
-                    elevation: 0,
-                    minimumSize: const Size(double.infinity, 44),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ), 
-                  onPressed: () => Navigator.pop(context), 
-                  child: const Text('Batal')
-                )
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text(
+              'Batal',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.black54,
+                fontSize: 14,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.danger,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    minimumSize: const Size(double.infinity, 44),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () async {
-                    _showLoadingDialog();
-                    await AuthService.logout();
-                    Navigator.pop(context); // Tutup loading
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (_) => false,
-                    );
-                  },
-                  child: const Text('Logout'),
-                )
+            ),
+          ),
+          const SizedBox(width: 4),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              _showLoadingDialog();
+              await AuthService.logout();
+              Navigator.pop(context); // Tutup loading
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              elevation: 0,
+              minimumSize: Size.zero, // Mencegah tombol jadi full width
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text(
+              'Logout',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                fontSize: 14,
               ),
-            ],
-          )),
+            ),
+          ),
         ],
       ),
     );
@@ -195,17 +219,14 @@ class _ProfilScreenState extends State<ProfilScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: const CareHubAppBar(titleText: 'Profil'),
       resizeToAvoidBottomInset: false,
       body: CustomScrollView(
         slivers: [
-          const SliverToBoxAdapter(
-            child: CareHubAppBar(titleText: 'Profil'),
-          ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-
                 // ── Profile banner ───────────────────────────────────────────
                 Container(
                   width: double.infinity,

@@ -74,6 +74,7 @@ class _InventarisScreenState extends State<InventarisScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: const CareHubAppBar(titleText: 'Inventaris'),
       resizeToAvoidBottomInset: false,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -81,9 +82,6 @@ class _InventarisScreenState extends State<InventarisScreen> {
               onRefresh: _fetchInventaris,
               child: CustomScrollView(
                 slivers: [
-                  const SliverToBoxAdapter(
-                    child: CareHubAppBar(),
-                  ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
                     sliver: SliverList(

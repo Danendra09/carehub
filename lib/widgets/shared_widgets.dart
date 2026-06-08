@@ -14,12 +14,14 @@ Future<void> showDeleteConfirmDialog({
 }) async {
   return showDialog(
     context: context,
+    barrierDismissible: true,
     builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
       titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-      contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 24, 16),
       title: Text(
         title,
         style: const TextStyle(
@@ -30,58 +32,53 @@ Future<void> showDeleteConfirmDialog({
       ),
       content: Text(
         message,
-        style: const TextStyle(fontSize: 14, color: Colors.black54, height: 1.5),
+        style: const TextStyle(
+          fontSize: 14,
+          color: Colors.black54,
+          height: 1.5,
+        ),
       ),
       actions: [
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 48,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFE0E0E0)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    backgroundColor: const Color(0xFFF5F5F5),
-                  ),
-                  child: const Text(
-                    'Batal',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black54,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    await onConfirm();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.danger,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text(
-                    'Hapus',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
+          ),
+          child: const Text(
+            'Batal',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black54,
+              fontSize: 14,
             ),
-          ],
+          ),
+        ),
+        const SizedBox(width: 4),
+        ElevatedButton(
+          onPressed: () async {
+            Navigator.pop(ctx);
+            await onConfirm();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.danger,
+            elevation: 0,
+            minimumSize: Size.zero, // Mencegah tombol jadi full width
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: const Text(
+            'Hapus',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              fontSize: 14,
+            ),
+          ),
         ),
       ],
     ),

@@ -112,6 +112,7 @@ class _ManajemenAnakScreenState extends State<ManajemenAnakScreen> {
     final list = _filtered;
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: const CareHubAppBar(),
       resizeToAvoidBottomInset: false,
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator()) 
@@ -119,7 +120,6 @@ class _ManajemenAnakScreenState extends State<ManajemenAnakScreen> {
             onRefresh: _fetchAnak,
             child: CustomScrollView(
               slivers: [
-          const SliverToBoxAdapter(child: CareHubAppBar()),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
             sliver: SliverList(

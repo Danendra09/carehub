@@ -100,15 +100,13 @@ class _KunjunganTamuScreenState extends State<KunjunganTamuScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: const CareHubAppBar(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _fetchData,
               child: CustomScrollView(
                 slivers: [
-                  const SliverToBoxAdapter(
-                    child: CareHubAppBar(),
-                  ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
                     sliver: SliverList(

@@ -150,6 +150,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: CareHubAppBar(avatarUrl: _userFoto),
       resizeToAvoidBottomInset: false,
       body: RefreshIndicator(
         onRefresh: _fetchDashboardData,
@@ -157,11 +158,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           physics:
               const AlwaysScrollableScrollPhysics(), // Memastikan bisa di-scroll & di-refresh
           slivers: [
-            SliverToBoxAdapter(
-              child: CareHubAppBar(
-                avatarUrl: _userFoto,
-              ),
-            ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(
                   20, 10, 20, 30), // Padding bawah dikurangi

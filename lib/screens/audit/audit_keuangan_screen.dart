@@ -72,22 +72,20 @@ class _AuditKeuanganScreenState extends State<AuditKeuanganScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: CareHubAppBar(
+        titleText: 'Audit Keuangan',
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppColors.textPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _fetchData,
               child: CustomScrollView(
                 slivers: [
-                  SliverToBoxAdapter(
-                    child: CareHubAppBar(
-                      titleText: 'Audit Keuangan',
-                      leading: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                            color: AppColors.textPrimary, size: 20),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                  ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
                     sliver: SliverList(
