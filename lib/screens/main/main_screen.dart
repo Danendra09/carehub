@@ -113,15 +113,7 @@ class _MainScreenState extends State<MainScreen> {
       }
 
       // 7. Profil (Akun)
-      // Kepala Panti (admin) disembunyikan karena sudah ada di pojok kanan atas AppBar
-      if (!isAdmin) {
-        _activeScreens.add(const ProfilScreen());
-        _activeNavItems.add({
-          'icon': Icons.person_rounded,
-          'iconOutlined': Icons.person_outline_rounded,
-          'label': 'Akun',
-        });
-      }
+      // Disembunyikan dari bottom bar untuk semua role, karena sudah bisa diakses lewat foto profil di pojok kanan atas.
 
       _isLoading = false;
     });
